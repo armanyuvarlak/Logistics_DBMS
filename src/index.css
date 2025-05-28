@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f7fa; /* Light gray background for the entire site */
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Hide dropdown arrows across the site */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+  padding-right: 1rem !important;
+}
+
+/* Professional theme colors */
+:root {
+  --primary-color: #2c3e50; /* Dark blue/slate */
+  --primary-color-hover: #1a252f;
+  --secondary-color: #34495e; /* Darker blue/slate */
+  --accent-color: #3498db; /* Bright blue accent */
+  --accent-color-hover: #2980b9;
+  --success-color: #27ae60; /* Green */
+  --danger-color: #e74c3c; /* Red */
+  --background-light: #f5f7fa; /* Light gray background */
+  --background-white: #ffffff;
+  --text-dark: #2c3e50;
+  --text-medium: #5d6771;
+  --text-light: #7f8c8d;
+  --border-color: #e2e8f0;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Custom styles for input fields */
+.input-field {
+  @apply border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-blue-500 focus:border-gray-300;
+}
+
+/* Custom styles for buttons */
+.btn {
+  @apply px-4 py-2 rounded font-medium transition-colors duration-200 shadow-sm;
+}
+
+.btn-primary {
+  @apply bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color-hover)] focus:outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-[var(--primary-color)];
+}
+
+.btn-accent {
+  @apply bg-[var(--accent-color)] text-white hover:bg-[var(--accent-color-hover)] focus:outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-[var(--accent-color)];
+}
+
+.btn-secondary {
+  @apply bg-gray-200 text-gray-800 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2;
+}
+
+/* Professional Card styles */
+.card {
+  @apply bg-white rounded-lg shadow-md overflow-hidden border border-gray-200;
+}
+
+.card-header {
+  @apply bg-gray-50 px-6 py-4 border-b border-gray-200;
+}
+
+.card-title {
+  @apply text-xl font-semibold text-gray-800;
+}
+
+.card-body {
+  @apply p-6;
+}
+
+/* Professional Table styles */
+.business-table {
+  @apply w-full border-collapse;
+}
+
+.business-table th {
+  @apply bg-gray-100 text-[var(--text-dark)] font-semibold text-left py-3 px-4 text-sm border-b border-gray-200;
+}
+
+.business-table td {
+  @apply py-3 px-4 border-b border-gray-200 text-[var(--text-medium)];
+}
+
+.business-table tr:nth-child(even) {
+  @apply bg-gray-50;
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--background-light)] text-[var(--text-dark)];
+  }
+
+  select, input, textarea {
+    @apply border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-[var(--accent-color)];
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 font-medium text-sm rounded transition duration-200 flex items-center justify-center shadow-sm;
+  }
+  
+  .btn-primary {
+    @apply bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color-hover)];
+  }
+  
+  .btn-accent {
+    @apply bg-[var(--accent-color)] text-white hover:bg-[var(--accent-color-hover)];
+  }
+  
+  .btn-success {
+    @apply bg-[var(--success-color)] text-white hover:opacity-90;
+  }
+  
+  .btn-danger {
+    @apply bg-[var(--danger-color)] text-white hover:opacity-90;
+  }
+  
+  .btn-icon {
+    @apply w-8 h-8 p-0 flex items-center justify-center rounded-full;
+  }
+  
+  .card {
+    @apply bg-[var(--background-white)] rounded shadow border border-[var(--border-color)] overflow-hidden mb-6;
+  }
+  
+  .card-header {
+    @apply p-5 border-b border-[var(--border-color)] bg-gray-50;
+  }
+  
+  .card-title {
+    @apply m-0 text-lg font-semibold text-[var(--text-dark)];
+  }
+  
+  .card-body {
+    @apply p-5;
+  }
+} 

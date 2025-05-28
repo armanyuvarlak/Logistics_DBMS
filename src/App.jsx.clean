@@ -1,0 +1,197 @@
+import React, { useState, useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import Header from './components/Header'
+import Sidebar from './components/Sidebar'
+import SingleOfferPage from './pages/SingleOfferPage'
+import DatabasePage from './pages/DatabasePage'
+import ResultsPage from './pages/ResultsPage'
+import LoginPage from './pages/LoginPage'
+import MultipleOfferPage from './pages/MultipleOfferPage'
+import MultipleOfferResultsPage from './pages/MultipleOfferResultsPage'
+import ReviewOffersPage from './pages/ReviewOffersPage'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+
+// Protected Route component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth()
+
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />
+  }
+
+  return children
+}
+
+// Layout component with sidebar
+const Layout = ({ children }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { isAuthenticated } = useAuth()
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen)
+  }
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleBodyClick = (event) => {
+      // Skip if sidebar is already closed or if we're on a small screen where the overlay handles this
+      if (!isSidebarOpen || window.innerWidth < 1024) {
+        return
+      }
+      
+      // Get sidebar element
+      const sidebar = document.querySelector('.sidebar-container')
+      
+      // Check if the sidebar exists and the click was outside both the sidebar and the menu button
+      if (sidebar && 
+          !sidebar.contains(event.target) && 
+          !event.target.closest('.menu-button')) {
+        setIsSidebarOpen(false)
+      }
+    }
+    
+    // Add event listener
+    document.addEventListener('click', handleBodyClick)
+    
+    // Cleanup event listener
+    return () => {
+      document.removeEventListener('click', handleBodyClick)
+    }
+  }, [isSidebarOpen])
+
+  if (!isAuthenticated) {
+    return children
+  }
+
+  return (
+    <div className="App flex h-screen bg-gray-50 relative">
+      {/* Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden" 
+          onClick={toggleSidebar}
+        />
+      )}
+      <Sidebar isOpen={isSidebarOpen} />
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        <Header toggleSidebar={toggleSidebar} />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Layout>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* Redirect root to offers page */}
+          <Route
+            path="/"
+            element={<Navigate to="/offer/single-offer" />}
+          />
+
+          {/* Single Offer page */}
+          <Route
+            path="/offer/single-offer"
+            element={
+              <ProtectedRoute>
+                <SingleOfferPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Results page for single offers */}
+          <Route
+            path="/results"
+            element={
+              <ProtectedRoute>
+                <ResultsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Multiple Offer page */}
+          <Route
+            path="/offer/multiple-offer"
+            element={
+              <ProtectedRoute>
+                <MultipleOfferPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Multiple Offer Results page */}
+          <Route
+            path="/offer/multiple-offer/results"
+            element={
+              <ProtectedRoute>
+                <MultipleOfferResultsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Review Offers pages */}
+          <Route
+            path="/offer/review-offers/:tab"
+            element={
+              <ProtectedRoute>
+                <ReviewOffersPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Database page */}
+          <Route
+            path="/database"
+            element={
+              <ProtectedRoute>
+                <DatabasePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Legacy redirects for old URLs */}
+          <Route
+            path="/multiple-offer"
+            element={<Navigate to="/offer/multiple-offer" />}
+          />
+
+          <Route
+            path="/multiple-offer/results"
+            element={
+              <ProtectedRoute>
+                <MultipleOfferResultsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            element={
+              <ProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            element={
+              <ProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Layout>
+    </AuthProvider>
+  )
+}
+
+export default App 
