@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getZipCodeData, getLanePairData } from '../firebase/firebaseUtils';
+import { calculateRowMetrics, calculateShipping } from '../services/calculatorService';
 
 const SingleOfferPage = () => {
   const navigate = useNavigate();
@@ -8,52 +10,136 @@ const SingleOfferPage = () => {
   ]);
   const [entryMode, setEntryMode] = useState('detailed'); // 'detailed' or 'quick'
   const [chargeableWeight, setChargeableWeight] = useState('');
+  const [originZip, setOriginZip] = useState('');
+  const [destinationZip, setDestinationZip] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const formRef = useRef(null);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (entryMode === 'detailed') {
-      // Calculate volume and LDM for each row based on dimensions before navigating
-      let totalLdm = 0;
-      const rowsWithCalculations = rows.map(row => {
-        // Only calculate if all required dimensions are present
-        let volume = '';
-        let ldm = 0;
-        
-        if (row.length && row.width && row.height && row.pieces) {
-          // Convert dimensions from cm to m and calculate volume in m³
-          const lengthM = parseFloat(row.length) / 100;
-          const widthM = parseFloat(row.width) / 100;
-          const heightM = parseFloat(row.height) / 100;
-          const pieces = parseInt(row.pieces);
-          
-          // Calculate volume
-          volume = (lengthM * widthM * heightM * pieces).toFixed(2);
-          
-          // Calculate LDM: width × length × pieces / 2.4
-          ldm = (widthM * lengthM * pieces) / 2.4;
-          totalLdm += ldm;
-        }
-        
-        return { ...row, volume, ldm: ldm.toFixed(2) };
-      });
+  // Function to get branch name from zip code
+  const getBranchFromZipCode = async (zipCode, zipCodeData) => {
+    const zipData = zipCodeData.find(data => data.zipCode === zipCode);
+    return zipData ? zipData.branchName : null;
+  };
+
+  // Function to validate lane pair exists
+  const validateLanePair = async (originZip, destinationZip) => {
+    try {
+      // Fetch zip code data to get branch names
+      const zipResult = await getZipCodeData();
+      if (!zipResult.success || !zipResult.data) {
+        throw new Error('Unable to fetch zip code data');
+      }
+
+      const zipCodeData = Array.isArray(zipResult.data) ? zipResult.data : [zipResult.data];
       
-      navigate('/results', { 
-        state: { 
-          rows: rowsWithCalculations, 
-          calculationType: 'single',
-          totalLdm: totalLdm.toFixed(2)
-        } 
-      });
-    } else {
-      // Quick entry with just chargeable weight
-      navigate('/results', { 
-        state: { 
-          chargeableWeight: parseFloat(chargeableWeight) || 0,
-          calculationType: 'single-quick'
-        } 
-      });
+      // Get branch names for origin and destination
+      const originBranch = await getBranchFromZipCode(originZip, zipCodeData);
+      const destinationBranch = await getBranchFromZipCode(destinationZip, zipCodeData);
+
+      if (!originBranch) {
+        throw new Error(`Origin zip code "${originZip}" not found in database`);
+      }
+
+      if (!destinationBranch) {
+        throw new Error(`Destination zip code "${destinationZip}" not found in database`);
+      }
+
+      // Fetch lane pair data
+      const lanePairResult = await getLanePairData();
+      if (!lanePairResult.success || !lanePairResult.data) {
+        throw new Error('Unable to fetch lane pair data');
+      }
+
+      const lanePairData = Array.isArray(lanePairResult.data) ? lanePairResult.data : [lanePairResult.data];
+      
+      // Check if lane pair exists (either direction)
+      const lanePairExists = lanePairData.some(pair => 
+        (pair.originBranch === originBranch && pair.destinationBranch === destinationBranch) ||
+        (pair.originBranch === destinationBranch && pair.destinationBranch === originBranch)
+      );
+
+      if (!lanePairExists) {
+        throw new Error(`No lane pair found for route ${originBranch} ↔ ${destinationBranch}. Please contact administrator to add this route.`);
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setValidationError('');
+    setIsValidating(true);
+
+    // Basic form validation
+    if (!originZip.trim() || !destinationZip.trim()) {
+      setValidationError('Please enter both origin and destination zip codes');
+      setIsValidating(false);
+      return;
+    }
+
+    if (originZip.trim() === destinationZip.trim()) {
+      setValidationError('Origin and destination zip codes must be different');
+      setIsValidating(false);
+      return;
+    }
+
+    try {
+      // Validate lane pair exists
+      await validateLanePair(originZip.trim(), destinationZip.trim());
+
+      // If validation passes, proceed with navigation
+      if (entryMode === 'detailed') {
+        // Calculate metrics for each row using the new calculation service
+        const rowsWithCalculations = rows.map(row => {
+          const metrics = calculateRowMetrics(row);
+          return { 
+            ...row, 
+            volume: metrics.volume,
+            ldm: metrics.ldm,
+            cbm: metrics.cbm,
+            volumeWeight13: metrics.volumeWeight13,
+            volumeWeight16: metrics.volumeWeight16
+          };
+        });
+        
+        // Calculate total LDM using the new service
+        const calculations = calculateShipping(rows, originZip.trim(), destinationZip.trim());
+        
+        navigate('/results', { 
+          state: { 
+            rows: rowsWithCalculations, 
+            calculationType: 'single',
+            totalLdm: calculations.summary.totalLdm,
+            originZip: originZip.trim(),
+            destinationZip: destinationZip.trim()
+          } 
+        });
+      } else {
+        // Quick entry with just chargeable weight
+        if (!chargeableWeight || parseFloat(chargeableWeight) <= 0) {
+          setValidationError('Please enter a valid chargeable weight');
+          setIsValidating(false);
+          return;
+        }
+
+        navigate('/results', { 
+          state: { 
+            chargeableWeight: parseFloat(chargeableWeight) || 0,
+            calculationType: 'single-quick',
+            originZip: originZip.trim(),
+            destinationZip: destinationZip.trim()
+          } 
+        });
+      }
+    } catch (error) {
+      console.error('Lane pair validation error:', error);
+      setValidationError(error.message);
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -121,7 +207,7 @@ const SingleOfferPage = () => {
       
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Single Offer Calculation</h2>
+          <h2 className="card-title">Offer Preparation</h2>
           
           <div className="mt-4 inline-flex rounded-md shadow-sm" role="group">
             <button
@@ -151,6 +237,83 @@ const SingleOfferPage = () => {
         
         <div className="card-body">
           <form ref={formRef} onSubmit={handleSubmit}>
+            {/* Origin and Destination Zip Code fields */}
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Route Information</h3>
+              
+              {/* Validation Error Display */}
+              {validationError && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800">Route Validation Error</h3>
+                      <p className="text-sm text-red-700 mt-1">{validationError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap -mx-3">
+                <div className="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+                  <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="origin-zip">
+                    Origin Zip Code
+                  </label>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    id="origin-zip"
+                    type="text"
+                    placeholder="Enter origin zip code"
+                    value={originZip}
+                    onChange={(e) => setOriginZip(e.target.value)}
+                  />
+                </div>
+                <div className="w-full md:w-1/2 px-3">
+                  <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="destination-zip">
+                    Destination Zip Code
+                  </label>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    id="destination-zip"
+                    type="text"
+                    placeholder="Enter destination zip code"
+                    value={destinationZip}
+                    onChange={(e) => setDestinationZip(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Item Information Forms */}
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Item Information</h3>
+            </div>
+            
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-blue-800">Required Input Units</h4>
+                  <div className="mt-1 text-sm text-blue-700">
+                    Please enter all measurements using these units:
+                    <ul className="list-disc list-inside mt-1 space-y-0.5">
+                      <li><strong>Weight:</strong> Kilograms (kg)</li>
+                      <li><strong>Dimensions (Length, Width, Height):</strong> Centimeters (cm)</li>
+                      <li><strong>Pieces:</strong> Number of items</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             {entryMode === 'detailed' ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
@@ -174,38 +337,47 @@ const SingleOfferPage = () => {
                             className="w-full px-2 py-1 border rounded"
                             value={row.pieces}
                             onChange={(e) => handleRowChange(row.id, 'pieces', e.target.value)}
+                            placeholder="Enter number"
                           />
                         </td>
                         <td className="px-4 py-2 border-b">
                           <input
                             type="number"
+                            step="0.01"
                             className="w-full px-2 py-1 border rounded"
                             value={row.weight}
                             onChange={(e) => handleRowChange(row.id, 'weight', e.target.value)}
+                            placeholder="Weight in kg"
                           />
                         </td>
                         <td className="px-4 py-2 border-b">
                           <input
                             type="number"
+                            step="0.1"
                             className="w-full px-2 py-1 border rounded"
                             value={row.length}
                             onChange={(e) => handleRowChange(row.id, 'length', e.target.value)}
+                            placeholder="Length in cm"
                           />
                         </td>
                         <td className="px-4 py-2 border-b">
                           <input
                             type="number"
+                            step="0.1"
                             className="w-full px-2 py-1 border rounded"
                             value={row.width}
                             onChange={(e) => handleRowChange(row.id, 'width', e.target.value)}
+                            placeholder="Width in cm"
                           />
                         </td>
                         <td className="px-4 py-2 border-b">
                           <input
                             type="number"
+                            step="0.1"
                             className="w-full px-2 py-1 border rounded"
                             value={row.height}
                             onChange={(e) => handleRowChange(row.id, 'height', e.target.value)}
+                            placeholder="Height in cm"
                           />
                         </td>
                         <td className="px-4 py-2 border-b">
@@ -262,7 +434,7 @@ const SingleOfferPage = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-center text-lg font-semibold"
                     value={chargeableWeight}
                     onChange={(e) => setChargeableWeight(e.target.value)}
-                    placeholder="Enter value"
+                    placeholder="Enter weight in kg"
                   />
                 </div>
               </div>
@@ -270,9 +442,16 @@ const SingleOfferPage = () => {
             <div className="mt-6 flex justify-end">
               <button
                 type="submit"
-                className="bg-[var(--primary-color)] text-white px-6 py-2 rounded hover:bg-[var(--primary-color-hover)] transition-colors"
+                disabled={isValidating}
+                className="bg-[var(--primary-color)] text-white px-6 py-2 rounded hover:bg-[var(--primary-color-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
-                Calculate
+                {isValidating && (
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                {isValidating ? 'Validating Route...' : 'Calculate'}
               </button>
             </div>
           </form>

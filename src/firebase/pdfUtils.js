@@ -3,7 +3,9 @@
  */
 
 import { httpsCallable } from "firebase/functions";
-import { auth, functions } from './config';
+import { httpsCallableFromURL } from "firebase/functions";
+import { getIdToken } from "firebase/auth";
+import { auth, functions } from './firebaseConfig';
 import { ensureFreshToken } from './authRefresh';
 
 /**

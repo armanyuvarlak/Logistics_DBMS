@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { calculateRowMetrics } from '../services/calculatorService'
 
 const CalculatePage = () => {
   const [rows, setRows] = useState([
@@ -11,25 +12,24 @@ const CalculatePage = () => {
   const navigate = useNavigate()
 
   const handleCalculate = () => {
-    // Calculate volume for each row based on dimensions before navigating
-    const rowsWithVolume = rows.map(row => {
-      // Only calculate volume if all dimensions are present
-      let volume = '';
-      if (row.length && row.width && row.height) {
-        // Convert dimensions from cm to m and calculate volume in m³
-        const lengthM = parseFloat(row.length) / 100;
-        const widthM = parseFloat(row.width) / 100;
-        const heightM = parseFloat(row.height) / 100;
-        volume = (lengthM * widthM * heightM).toFixed(2);
-      }
-      return { ...row, volume };
+    // Calculate metrics for each row using the new calculation service
+    const rowsWithCalculations = rows.map(row => {
+      const metrics = calculateRowMetrics(row);
+      return { 
+        ...row, 
+        volume: metrics.volume,
+        ldm: metrics.ldm,
+        cbm: metrics.cbm,
+        volumeWeight13: metrics.volumeWeight13,
+        volumeWeight16: metrics.volumeWeight16
+      };
     });
 
     // Both modes navigate to the same results page, just with different data structures
     if (entryMode === 'detailed') {
       navigate('/results', { 
         state: { 
-          rows: rowsWithVolume,
+          rows: rowsWithCalculations,
           calculationType: 'detailed'
         } 
       })
@@ -112,6 +112,27 @@ const CalculatePage = () => {
             >
               Quick Entry
             </button>
+          </div>
+          
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Input Units</h3>
+                <div className="mt-1 text-sm text-blue-700">
+                  Please enter all measurements in the specified units:
+                  <ul className="list-disc list-inside mt-1 space-y-0.5">
+                    <li><strong>Weight:</strong> Kilograms (kg)</li>
+                    <li><strong>Dimensions:</strong> Centimeters (cm)</li>
+                    <li><strong>Pieces:</strong> Number of items</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -228,42 +249,51 @@ const TableRow = ({ row, onSave, onUpdate, onRemove, showRemoveButton }) => {
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.pieces}
           onChange={(e) => onUpdate(row.id, 'pieces', e.target.value)}
+          placeholder="Enter number"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
           min="0"
+          step="0.01"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.weight}
           onChange={(e) => onUpdate(row.id, 'weight', e.target.value)}
+          placeholder="Weight in kg"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
           min="0"
+          step="0.1"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.length}
           onChange={(e) => onUpdate(row.id, 'length', e.target.value)}
+          placeholder="Length in cm"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
           min="0"
+          step="0.1"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.width}
           onChange={(e) => onUpdate(row.id, 'width', e.target.value)}
+          placeholder="Width in cm"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
           min="0"
+          step="0.1"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.height}
           onChange={(e) => onUpdate(row.id, 'height', e.target.value)}
+          placeholder="Height in cm"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">

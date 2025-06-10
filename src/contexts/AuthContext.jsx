@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { subscribeToAuthChanges } from '../firebase/authUtils';
+import { subscribeToAuthChanges, signOutUser } from '../firebase/authUtils';
 
 const AuthContext = createContext(null);
 
@@ -18,7 +18,19 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Subscribe to auth state changes
     const unsubscribe = subscribeToAuthChanges((user) => {
-      setUser(user);
+      // If a user is logged in but email isn't verified, sign them out
+      if (user && !user.emailVerified) {
+        signOutUser().then(() => {
+          console.log('Signed out user with unverified email');
+          setUser(null);
+        }).catch(error => {
+          console.error('Error signing out user with unverified email:', error);
+          // Still set user to null to ensure UI is consistent
+          setUser(null);
+        });
+      } else {
+        setUser(user);
+      }
       setLoading(false);
     });
 
@@ -30,6 +42,10 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     isAuthenticated: !!user,
+    // Check if user is authenticated AND email is verified
+    isEmailVerified: user ? user.emailVerified : false,
+    // Only consider fully authenticated if email is verified
+    isFullyAuthenticated: !!user && user.emailVerified
   };
 
   return (

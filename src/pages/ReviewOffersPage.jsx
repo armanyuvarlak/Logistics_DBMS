@@ -40,7 +40,7 @@ const ReviewOffersPage = () => {
         // Transform zipcode data into offer format as a temporary solution
         const mockOffers = Array.isArray(result.data) ? result.data.map((item, index) => ({
           id: `OF${1000 + index}`,
-          type: index % 2 === 0 ? 'Single' : 'Multiple',
+          type: 'Single',
           origin: item.zipCode || '10000',
           destination: '20000',
           service: index % 3 === 0 ? 'Express' : 'Standard',

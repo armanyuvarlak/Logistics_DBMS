@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { signInUser, registerUser } from '../firebase/authUtils';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { signInUser, registerUser, resendVerificationEmail, signOutUser } from '../firebase/authUtils';
+import GoogleSignInButton from '../components/GoogleSignInButton';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -8,37 +10,136 @@ const LoginPage = () => {
   const [name, setName] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
+
+  // If already authenticated and email verified, redirect to home
+  useEffect(() => {
+    if (isAuthenticated && user?.emailVerified) {
+      navigate('/offer/single-offer');
+    } else if (isAuthenticated && !user?.emailVerified) {
+      // If signed in but email not verified, sign out
+      const handleAutoSignOut = async () => {
+        await signOutUser();
+      };
+      handleAutoSignOut();
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setLoading(true);
+    setVerificationSent(false);
 
     try {
-      const result = isRegistering 
-        ? await registerUser(email, password, name)
-        : await signInUser(email, password);
-
-      if (result.success) {
-        navigate('/calculate');
+      if (isRegistering) {
+        // Handle registration
+        const result = await registerUser(email, password, name);
+        if (result.success) {
+          // Display success message after registration
+          setSuccess(result.message || "Account created successfully. Please check your email for verification.");
+          setVerificationSent(true);
+          // Clear form fields
+          setEmail('');
+          setPassword('');
+          setName('');
+          // Switch to login view after successful registration
+          setIsRegistering(false);
+        } else {
+          // Format registration error messages
+          handleAuthError(result.error);
+        }
       } else {
-        setError(result.error.message);
+        // Handle sign in
+        const result = await signInUser(email, password);
+        if (result.success) {
+          if (result.user.emailVerified) {
+            navigate('/offer/single-offer');
+          } else {
+            // Sign out if email not verified
+            await signOutUser();
+            setError('Please verify your email before signing in. Check your inbox for a verification email.');
+          }
+        } else {
+          // Format sign-in error messages
+          handleAuthError(result.error);
+        }
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError('An unexpected error occurred. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Helper function to convert Firebase error codes to user-friendly messages
+  const handleAuthError = (error) => {
+    const errorMessage = (() => {
+      switch (error.code) {
+        case 'auth/invalid-credential':
+          return 'Invalid email or password. Please check your credentials and try again.';
+        case 'auth/user-not-found':
+          return 'No account found with this email. Please check your email or create a new account.';
+        case 'auth/wrong-password':
+          return 'Incorrect password. Please try again.';
+        case 'auth/email-already-in-use':
+          return 'This email address is already in use. Please use a different email or try signing in.';
+        case 'auth/weak-password':
+          return 'Password is too weak. Please use a stronger password (at least 6 characters).';
+        case 'auth/invalid-email':
+          return 'Invalid email address. Please enter a valid email.';
+        case 'auth/too-many-requests':
+          return 'Too many unsuccessful login attempts. Please try again later or reset your password.';
+        case 'auth/network-request-failed':
+          return 'Network error. Please check your internet connection and try again.';
+        default:
+          return error.message || 'An error occurred during authentication. Please try again.';
+      }
+    })();
+    
+    setError(errorMessage);
+  };
+
+  const handleResendVerification = async () => {
+    setLoading(true);
+    try {
+      const result = await resendVerificationEmail();
+      if (result.success) {
+        setVerificationSent(true);
+        setSuccess("Verification email sent! Please check your inbox.");
+      } else {
+        setError(result.error.message);
+      }
+    } catch (err) {
+      setError('Failed to resend verification email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = (user) => {
+    // Google sign-in automatically verifies email
+    navigate('/offer/single-offer');
+  };
+
+  const handleGoogleError = (error) => {
+    setError(error.message || 'Failed to sign in with Google');
+  };
+
   const toggleMode = () => {
     setIsRegistering(!isRegistering);
     setError(null);
+    setSuccess(null);
     setEmail('');
     setPassword('');
     setName('');
+    setVerificationSent(false);
   };
 
   return (
@@ -53,7 +154,7 @@ const LoginPage = () => {
           </div>
           
           <h1 className="text-center text-3xl font-bold text-blue-600 mb-2">
-            Transcon Management System
+            Road Freight Management System
           </h1>
           <h2 className="mt-2 text-center text-xl font-semibold text-gray-900">
             {isRegistering ? 'Create Your Account' : 'Sign in to Your Account'}
@@ -63,9 +164,33 @@ const LoginPage = () => {
           </p>
         </div>
         
+        {success && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded" role="alert">
+            <p className="text-sm text-green-700">{success}</p>
+            {verificationSent && (
+              <button 
+                onClick={handleResendVerification}
+                disabled={loading}
+                className="mt-2 text-sm text-green-700 underline hover:text-green-900"
+              >
+                Resend verification email
+              </button>
+            )}
+          </div>
+        )}
+        
         {error && (
           <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded" role="alert">
             <p className="text-sm text-red-700">{error}</p>
+            {error.includes('verify your email') && (
+              <button 
+                onClick={handleResendVerification}
+                disabled={loading}
+                className="mt-2 text-sm text-red-700 underline hover:text-red-900"
+              >
+                Resend verification email
+              </button>
+            )}
           </div>
         )}
 
@@ -138,6 +263,19 @@ const LoginPage = () => {
                 isRegistering ? 'Create Account' : 'Sign In'
               )}
             </button>
+          </div>
+
+          <div className="flex items-center justify-center">
+            <div className="border-t border-gray-300 flex-grow mr-3"></div>
+            <span className="text-sm text-gray-500">OR</span>
+            <div className="border-t border-gray-300 flex-grow ml-3"></div>
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleSignInButton 
+              onSuccess={handleGoogleSuccess} 
+              onError={handleGoogleError} 
+            />
           </div>
 
           <div className="text-center">

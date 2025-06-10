@@ -1,4 +1,4 @@
-import { db, auth, signInAnonymousUser, storage } from './config';
+import { db, auth, signInAnonymousUser, storage } from './firebaseConfig';
 import { 
   collection, 
   addDoc, 
@@ -7,7 +7,8 @@ import {
   where,
   doc,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  getDoc
 } from 'firebase/firestore';
 import {
   ref,
@@ -330,6 +331,141 @@ export const listPdfs = async (directory = 'pdfs') => {
     return { success: true, items };
   } catch (error) {
     console.error("Error listing PDFs: ", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ===================== LANE PAIR OPERATIONS =====================
+
+// Save lane pair data
+export const saveLanePair = async (lanePairData) => {
+  try {
+    // Make sure user is authenticated
+    const isAuthenticated = await ensureAuth();
+    if (!isAuthenticated) {
+      return { success: false, error: "Authentication failed" };
+    }
+    
+    const docRef = await addDoc(collection(db, 'lanePairs'), {
+      ...lanePairData,
+      userId: auth.currentUser.uid,
+      createdAt: new Date().toISOString()
+    });
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error("Error saving lane pair: ", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Get lane pair data
+export const getLanePairData = async (lanePairId) => {
+  try {
+    // Make sure user is authenticated
+    const isAuthenticated = await ensureAuth();
+    if (!isAuthenticated) {
+      return { success: false, error: "Authentication failed" };
+    }
+    
+    if (lanePairId) {
+      // If lanePairId is provided, get that specific lane pair
+      const docRef = doc(db, 'lanePairs', lanePairId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { success: true, data: { id: docSnap.id, ...docSnap.data() } };
+      } else {
+        return { success: false, error: "Lane pair not found" };
+      }
+    } else {
+      // If no lanePairId is provided, get all lane pairs
+      const querySnapshot = await getDocs(collection(db, 'lanePairs'));
+      const data = [];
+      querySnapshot.forEach((doc) => {
+        data.push({ id: doc.id, ...doc.data() });
+      });
+      return { success: true, data };
+    }
+  } catch (error) {
+    console.error("Error getting lane pair data: ", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Update lane pair data
+export const updateLanePair = async (id, lanePairData) => {
+  try {
+    // Make sure user is authenticated
+    const isAuthenticated = await ensureAuth();
+    if (!isAuthenticated) {
+      return { success: false, error: "Authentication failed" };
+    }
+    
+    const lanePairRef = doc(db, 'lanePairs', id);
+    await updateDoc(lanePairRef, {
+      ...lanePairData,
+      updatedAt: new Date().toISOString()
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating lane pair: ", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Delete lane pair data
+export const deleteLanePair = async (id) => {
+  try {
+    // Make sure user is authenticated
+    const isAuthenticated = await ensureAuth();
+    if (!isAuthenticated) {
+      return { success: false, error: "Authentication failed" };
+    }
+    
+    const lanePairRef = doc(db, 'lanePairs', id);
+    await deleteDoc(lanePairRef);
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting lane pair: ", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Search lane pairs by origin and destination branches
+export const searchLanePairs = async (originBranch, destinationBranch) => {
+  try {
+    // Make sure user is authenticated
+    const isAuthenticated = await ensureAuth();
+    if (!isAuthenticated) {
+      return { success: false, error: "Authentication failed" };
+    }
+    
+    let q;
+    if (originBranch && destinationBranch) {
+      // Search for specific origin-destination pair
+      q = query(
+        collection(db, 'lanePairs'), 
+        where('originBranch', '==', originBranch),
+        where('destinationBranch', '==', destinationBranch)
+      );
+    } else if (originBranch) {
+      // Search by origin only
+      q = query(collection(db, 'lanePairs'), where('originBranch', '==', originBranch));
+    } else if (destinationBranch) {
+      // Search by destination only
+      q = query(collection(db, 'lanePairs'), where('destinationBranch', '==', destinationBranch));
+    } else {
+      // Get all lane pairs if no specific criteria
+      q = collection(db, 'lanePairs');
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const data = [];
+    querySnapshot.forEach((doc) => {
+      data.push({ id: doc.id, ...doc.data() });
+    });
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error searching lane pairs: ", error);
     return { success: false, error: error.message };
   }
 }; 

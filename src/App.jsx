@@ -6,20 +6,25 @@ import SingleOfferPage from './pages/SingleOfferPage'
 import DatabasePage from './pages/DatabasePage'
 import ResultsPage from './pages/ResultsPage'
 import LoginPage from './pages/LoginPage'
-import MultipleOfferPage from './pages/MultipleOfferPage'
-import MultipleOfferResultsPage from './pages/MultipleOfferResultsPage'
+
 import ReviewOffersPage from './pages/ReviewOffersPage'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, isEmailVerified, loading } = useAuth()
 
   if (loading) {
     return <div>Loading...</div>
   }
 
+  // Check both authentication and email verification
   if (!isAuthenticated) {
+    return <Navigate to="/login" />
+  }
+  
+  // If user is authenticated but email is not verified, redirect to login
+  if (!isEmailVerified) {
     return <Navigate to="/login" />
   }
 
@@ -100,7 +105,7 @@ function App() {
             element={<Navigate to="/offer/single-offer" />}
           />
 
-          {/* Single Offer page */}
+          {/* Offer Preparation page */}
           <Route
             path="/offer/single-offer"
             element={
@@ -110,7 +115,7 @@ function App() {
             }
           />
 
-          {/* Results page for single offers */}
+          {/* Results page for offers */}
           <Route
             path="/results"
             element={
@@ -120,25 +125,7 @@ function App() {
             }
           />
 
-          {/* Multiple Offer page */}
-          <Route
-            path="/offer/multiple-offer"
-            element={
-              <ProtectedRoute>
-                <MultipleOfferPage />
-              </ProtectedRoute>
-            }
-          />
 
-          {/* Multiple Offer Results page */}
-          <Route
-            path="/offer/multiple-offer/results"
-            element={
-              <ProtectedRoute>
-                <MultipleOfferResultsPage />
-              </ProtectedRoute>
-            }
-          />
 
           {/* Review Offers pages */}
           <Route
@@ -161,19 +148,6 @@ function App() {
           />
 
           {/* Legacy redirects for old URLs */}
-          <Route
-            path="/multiple-offer"
-            element={<Navigate to="/offer/multiple-offer" />}
-          />
-
-          <Route
-            path="/multiple-offer/results"
-            element={
-              <ProtectedRoute>
-                <MultipleOfferResultsPage />
-              </ProtectedRoute>
-            }
-          />
 
           <Route
             path="/pdf-test"

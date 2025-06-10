@@ -1,5 +1,5 @@
 /**
- * Service to handle shipping calculations
+ * Service to handle shipping calculations with corrected formulas
  */
 
 /**
@@ -7,81 +7,189 @@
  * @param {Array} rows - Array of row data objects
  * @param {string} originZip - Origin ZIP code
  * @param {string} destinationZip - Destination ZIP code
+ * @param {string} volumeRatio - Volume ratio ('1:3' or '1:6')
  * @returns {Object} - Calculated results
  */
-export const calculateShipping = (rows, originZip, destinationZip) => {
+export const calculateShipping = (rows, originZip, destinationZip, volumeRatio = '1:3') => {
   // Input validation
-  if (!rows || rows.length === 0 || !originZip || !destinationZip) {
-    throw new Error('Missing required calculation parameters');
+  if (!rows || rows.length === 0) {
+    throw new Error('Missing required row data');
   }
 
   // Perform calculations
   let totalPieces = 0;
   let totalGrossWeight = 0;
-  let totalVolumeWeight = 0;
+  let totalVolumeWeight13 = 0; // Volume weight for 1:3 ratio
+  let totalVolumeWeight16 = 0; // Volume weight for 1:6 ratio
   let totalCbm = 0;
   let totalLdm = 0;
 
   rows.forEach(row => {
-    // Skip invalid rows
-    if (!row.pieces || !row.length || !row.width || !row.height || !row.grossWeight) {
+    // Skip invalid rows - only require pieces, length, width for basic calculations
+    if (!row.pieces || !row.length || !row.width) {
       return;
     }
 
-    const pieces = parseInt(row.pieces, 10);
-    const length = parseFloat(row.length) / 100; // Convert cm to meters
-    const width = parseFloat(row.width) / 100;   // Convert cm to meters
-    const height = parseFloat(row.height) / 100; // Convert cm to meters
-    const grossWeight = parseFloat(row.grossWeight);
-
-    // Calculate volume in cubic meters
-    const volumeInCbm = length * width * height * pieces;
+    const pieces = parseInt(row.pieces, 10) || 0;
+    const length = parseFloat(row.length) || 0; // Keep in cm for calculations
+    const width = parseFloat(row.width) || 0;   // Keep in cm for calculations
+    const height = parseFloat(row.height) || 0; // Keep in cm for calculations
+    const weight = parseFloat(row.weight) || 0; // Weight per piece in kg
     
-    // Calculate volume weight (1 CBM = 167 kg volumetric weight by default)
-    const volumeWeight = volumeInCbm * 167;
-    
-    // Calculate Load Meter (LDM) - width × length × pieces / 2.4
-    const ldm = (width * length * pieces) / 2.4;
+    // Determine if stackable (handle both boolean and string formats)
+    let isStackable = false;
+    if (typeof row.stackable === 'boolean') {
+      isStackable = row.stackable;
+    } else if (typeof row.stackable === 'string') {
+      isStackable = row.stackable.toLowerCase() === 'yes' || row.stackable === 'true';
+    }
 
+    // 1. LDM Amount = width x length x pieces / 2.4
+    // Convert cm to meters for LDM calculation
+    const ldm = (width / 100) * (length / 100) * pieces / 2.4;
+
+    // 2. CBM Amount calculation
+    let cbm = 0;
+    if (isStackable && height > 0) {
+      // If stackable: width x length x height x pieces (convert cm to m³)
+      cbm = (width / 100) * (length / 100) * (height / 100) * pieces;
+    } else {
+      // If not stackable: width x length x pieces x 5.75 / 2.4 (convert cm to m²)
+      cbm = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
+    }
+
+    // 3. Volume weight calculation
+    let volumeWeight13 = 0; // For 1:3 ratio
+    let volumeWeight16 = 0; // For 1:6 ratio
+    
+    if (isStackable && height > 0) {
+      // If stackable: width x length x height x pieces / 3000 or 6000
+      const volumeInCm3 = width * length * height * pieces;
+      volumeWeight13 = volumeInCm3 / 3000; // 1:3 ratio
+      volumeWeight16 = volumeInCm3 / 6000; // 1:6 ratio
+    } else {
+      // If not stackable: width x length x pieces x 5.75 / 2.4 / 333 or 166.67
+      const baseValue = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
+      volumeWeight13 = baseValue / 333;     // 1:3 ratio
+      volumeWeight16 = baseValue / 166.67;  // 1:6 ratio
+    }
+
+    // Accumulate totals
     totalPieces += pieces;
-    totalGrossWeight += grossWeight * pieces;
-    totalVolumeWeight += volumeWeight;
-    totalCbm += volumeInCbm;
+    totalGrossWeight += weight * pieces; // Total weight for all pieces
+    totalVolumeWeight13 += volumeWeight13;
+    totalVolumeWeight16 += volumeWeight16;
+    totalCbm += cbm;
     totalLdm += ldm;
   });
 
-  // Determine which weight to use (gross or volume)
-  const chargeableWeight = Math.max(totalGrossWeight, totalVolumeWeight);
-  const isDense = totalGrossWeight >= totalVolumeWeight;
-  
-  // Calculate density ratio
-  const densityRatio = totalGrossWeight > 0 ? totalCbm > 0 ? totalGrossWeight / totalCbm : 0 : 0;
-  
-  // Calculate volume ratio
-  const volumeRatio = totalVolumeWeight > 0 ? totalVolumeWeight / totalGrossWeight : 0;
+  // 4. Chargeable weight = max(gross weight, volume weight)
+  const chargeableWeight13 = Math.max(totalGrossWeight, totalVolumeWeight13);
+  const chargeableWeight16 = Math.max(totalGrossWeight, totalVolumeWeight16);
 
-  // Placeholder for zone calculation based on ZIP codes
-  const zone = calculateZone(originZip, destinationZip);
+  // 5. Dense/Volumetric determination
+  const isDense13 = totalGrossWeight >= totalVolumeWeight13;
+  const isDense16 = totalGrossWeight >= totalVolumeWeight16;
 
-  // Mock service options based on destination
-  const serviceOptions = getServiceOptions(zone);
+  // 6. Density ratio = gross weight / CBM volume
+  const densityRatio = totalCbm > 0 ? totalGrossWeight / totalCbm : 0;
+
+  // Calculate zone if zip codes provided
+  const zone = (originZip && destinationZip) ? calculateZone(originZip, destinationZip) : null;
+  const serviceOptions = zone ? getServiceOptions(zone) : [];
 
   return {
     summary: {
-      volumeRatio: volumeRatio.toFixed(2),
-      pieces: totalPieces,
-      grossWeight: totalGrossWeight.toFixed(2),
-      volumeWeight: totalVolumeWeight.toFixed(2),
-      chargeableWeight: chargeableWeight.toFixed(2),
-      denseOrVolumetric: isDense ? 'Dense' : 'Volumetric',
-      densityRatio: densityRatio.toFixed(2),
-      ldmAmount: totalLdm.toFixed(2),
-      cbmAmount: totalCbm.toFixed(2)
+      totalPieces,
+      totalGrossWeight: totalGrossWeight.toFixed(2),
+      totalLdm: totalLdm.toFixed(2),
+      totalCbm: totalCbm.toFixed(2),
+      ratios: {
+        '1:3': {
+          volumeWeight: totalVolumeWeight13.toFixed(2),
+          chargeableWeight: chargeableWeight13.toFixed(2),
+          denseOrVolumetric: isDense13 ? 'Dense' : 'Volumetric',
+          densityRatio: densityRatio.toFixed(2)
+        },
+        '1:6': {
+          volumeWeight: totalVolumeWeight16.toFixed(2),
+          chargeableWeight: chargeableWeight16.toFixed(2),
+          denseOrVolumetric: isDense16 ? 'Dense' : 'Volumetric',
+          densityRatio: densityRatio.toFixed(2)
+        }
+      }
     },
     results: {
       zone,
       serviceOptions
     }
+  };
+};
+
+/**
+ * Calculate individual row metrics for display purposes
+ * @param {Object} row - Single row data
+ * @returns {Object} - Row calculations
+ */
+export const calculateRowMetrics = (row) => {
+  if (!row.pieces || !row.length || !row.width) {
+    return {
+      ldm: 0,
+      cbm: 0,
+      volumeWeight13: 0,
+      volumeWeight16: 0,
+      volume: 0
+    };
+  }
+
+  const pieces = parseInt(row.pieces, 10) || 0;
+  const length = parseFloat(row.length) || 0;
+  const width = parseFloat(row.width) || 0;
+  const height = parseFloat(row.height) || 0;
+  
+  // Determine if stackable
+  let isStackable = false;
+  if (typeof row.stackable === 'boolean') {
+    isStackable = row.stackable;
+  } else if (typeof row.stackable === 'string') {
+    isStackable = row.stackable.toLowerCase() === 'yes' || row.stackable === 'true';
+  }
+
+  // LDM calculation
+  const ldm = (width / 100) * (length / 100) * pieces / 2.4;
+
+  // CBM calculation
+  let cbm = 0;
+  let volume = 0; // Volume in m³ for display
+  
+  if (isStackable && height > 0) {
+    cbm = (width / 100) * (length / 100) * (height / 100) * pieces;
+    volume = cbm; // Same for stackable items
+  } else {
+    cbm = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
+    volume = cbm; // Use the calculated CBM as volume
+  }
+
+  // Volume weight calculations
+  let volumeWeight13 = 0;
+  let volumeWeight16 = 0;
+  
+  if (isStackable && height > 0) {
+    const volumeInCm3 = width * length * height * pieces;
+    volumeWeight13 = volumeInCm3 / 3000;
+    volumeWeight16 = volumeInCm3 / 6000;
+  } else {
+    const baseValue = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
+    volumeWeight13 = baseValue / 333;
+    volumeWeight16 = baseValue / 166.67;
+  }
+
+  return {
+    ldm: ldm.toFixed(2),
+    cbm: cbm.toFixed(2),
+    volume: volume.toFixed(2),
+    volumeWeight13: volumeWeight13.toFixed(2),
+    volumeWeight16: volumeWeight16.toFixed(2)
   };
 };
 

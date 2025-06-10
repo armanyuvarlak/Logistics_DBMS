@@ -353,7 +353,7 @@ function buildPdfContent(doc, offerData) {
     doc
       .fontSize(10)
       .text(
-        'Logistics Offer Generator - Powered by Transcon Management System',
+        'Logistics Offer Generator - Powered by Road Freight Management System',
         50,
         doc.page.height - 50,
         { align: 'center', width: doc.page.width - 100 }

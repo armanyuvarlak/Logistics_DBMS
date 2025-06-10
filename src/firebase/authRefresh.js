@@ -2,7 +2,11 @@
  * Utility functions for handling Firebase authentication token refresh
  */
 
-import { auth } from './config';
+import { getIdToken } from 'firebase/auth';
+import { auth } from './firebaseConfig';
+
+// Default token expiration buffer in milliseconds (5 minutes)
+const DEFAULT_EXPIRATION_BUFFER = 5 * 60 * 1000;
 
 /**
  * Ensure user has a valid, fresh authentication token

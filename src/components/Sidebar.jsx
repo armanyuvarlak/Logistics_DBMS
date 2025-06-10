@@ -84,26 +84,15 @@ const Sidebar = ({ isOpen }) => {
   }
 
   const getActiveSubPage = (path) => {
-    if (path.includes('/single-offer')) return 'single-offer'
-    if (path.includes('/multiple-offer')) return 'multiple-offer'
+    if (path.includes('/single-offer')) return 'offer-preparation'
     if (path.includes('/review-offers')) return 'review-offers'
     return ''
   }
   
-  const getActiveReviewTab = (path) => {
-    if (path.includes('/review-offers/general')) return 'general'
-    if (path.includes('/review-offers/client')) return 'client'
-    if (path.includes('/review-offers/by-date')) return 'by-date'
-    if (path.includes('/review-offers/approval')) return 'approval'
-    if (path.includes('/review-offers/origin')) return 'origin'
-    if (path.includes('/review-offers/destination')) return 'destination'
-    if (path.includes('/review-offers/lane-pair')) return 'lane-pair'
-    return 'general'
-  }
+
   
   const activePage = getActivePage(location.pathname)
   const activeSubPage = getActiveSubPage(location.pathname)
-  const activeReviewTab = getActiveReviewTab(location.pathname)
 
   const toggleExpand = (item) => {
     setExpandedItems(prev => ({
@@ -128,48 +117,14 @@ const Sidebar = ({ isOpen }) => {
       icon: HomeIcon,
       subItems: [
         {
-          name: 'Single Offer',
+          name: 'Offer Preparation',
           path: '/offer/single-offer',
           icon: CalculatorIcon
         },
         {
-          name: 'Multiple Offer',
-          path: '/offer/multiple-offer',
-          icon: CalculatorIcon
-        },
-        {
           name: 'Review Offers',
-          isDropdownOnly: true,
-          subItems: [
-            {
-              name: 'General',
-              path: '/offer/review-offers/general'
-            },
-            {
-              name: 'Client',
-              path: '/offer/review-offers/client'
-            },
-            {
-              name: 'By Date',
-              path: '/offer/review-offers/by-date'
-            },
-            {
-              name: 'Approval',
-              path: '/offer/review-offers/approval'
-            },
-            {
-              name: 'Origin',
-              path: '/offer/review-offers/origin'
-            },
-            {
-              name: 'Destination',
-              path: '/offer/review-offers/destination'
-            },
-            {
-              name: 'Lane Pair',
-              path: '/offer/review-offers/lane-pair'
-            }
-          ]
+          path: '/offer/review-offers/general',
+          icon: CalculatorIcon
         }
       ]
     },
@@ -251,55 +206,16 @@ const Sidebar = ({ isOpen }) => {
                     <div className="ml-4 mt-2 border-l-2 border-gray-700 pl-4 space-y-2">
                       {item.subItems.map(subItem => (
                         <div key={subItem.name} className="my-2">
-                          {subItem.isDropdownOnly ? (
-                            <div 
-                              className={`flex items-center justify-between py-2 px-2 rounded text-sm transition-colors duration-200 cursor-pointer ${
-                                activeSubPage === subItem.name.toLowerCase().replace(' ', '-')
-                                  ? 'text-blue-400 bg-slate-700'
-                                  : 'text-gray-400 hover:text-white'
-                              }`}
-                              onClick={() => toggleExpand('reviewOffers')}
-                            >
-                              <span>{subItem.name}</span>
-                              <svg 
-                                className={`w-3 h-3 transform transition-transform ${expandedItems.reviewOffers ? 'rotate-180' : ''}`} 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </div>
-                          ) : (
-                            <Link
-                              to={subItem.path}
-                              className={`flex items-center py-2 px-2 rounded text-sm transition-colors duration-200 ${
-                                activeSubPage === subItem.name.toLowerCase().replace(' ', '-')
-                                  ? 'text-blue-400 bg-slate-700'
-                                  : 'text-gray-400 hover:text-white'
-                              }`}
-                            >
-                              {subItem.name}
-                            </Link>
-                          )}
-                          
-                          {subItem.name === 'Review Offers' && expandedItems.reviewOffers && (
-                            <div className="ml-4 mt-3 mb-3 border-l border-gray-700 pl-3 space-y-3">
-                              {subItem.subItems.map(reviewTab => (
-                                <Link
-                                  key={reviewTab.name}
-                                  to={reviewTab.path}
-                                  className={`flex items-center py-2 px-2 rounded text-xs transition-colors duration-200 ${
-                                    activeReviewTab === reviewTab.name.toLowerCase().replace(' ', '-')
-                                      ? 'text-blue-400 bg-slate-700'
-                                      : 'text-gray-500 hover:text-white'
-                                  }`}
-                                >
-                                  {reviewTab.name}
-                                </Link>
-                              ))}
-                            </div>
-                          )}
+                          <Link
+                            to={subItem.path}
+                            className={`flex items-center py-2 px-2 rounded text-sm transition-colors duration-200 ${
+                              activeSubPage === subItem.name.toLowerCase().replace(' ', '-')
+                                ? 'text-blue-400 bg-slate-700'
+                                : 'text-gray-400 hover:text-white'
+                            }`}
+                          >
+                            {subItem.name}
+                          </Link>
                         </div>
                       ))}
                     </div>

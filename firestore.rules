@@ -2,12 +2,32 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow authenticated users to read and write only their own data
+    // Allow authenticated users to read and write only their own data in userData
     match /userData/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Default: deny all access
+    // Allow authenticated users to access calculations collection
+    match /calculations/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to access zipCodes collection
+    match /zipCodes/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to access rates collection
+    match /rates/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to access lanePairs collection
+    match /lanePairs/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Default: deny all access to other collections
     match /{document=**} {
       allow read, write: if false;
     }

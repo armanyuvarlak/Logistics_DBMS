@@ -44,7 +44,7 @@ This is a web-based version of the Logistics Calculator application.
 - LocalStorage is used as a fallback when offline
 
 ## Features
-- Single and multiple logistics offers calculation
+- Single logistics offers calculation
 - Database management
 - User authentication
 - Results export

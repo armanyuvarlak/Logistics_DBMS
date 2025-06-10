@@ -1,6 +1,6 @@
 {
-  "short_name": "Transcon",
-  "name": "Transcon Management System",
+  "short_name": "Logistics Calculator",
+  "name": "Logistics Calculator Web App",
   "icons": [
     {
       "src": "favicon.ico",
