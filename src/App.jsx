@@ -147,23 +147,7 @@ function App() {
             }
           />
 
-          {/* Legacy redirects for old URLs */}
 
-          <Route
-            path="/pdf-test"
-            element={
-              <ProtectedRoute>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/simple-pdf-test"
-            element={
-              <ProtectedRoute>
-              </ProtectedRoute>
-            }
-          />
         </Routes>
       </Layout>
     </AuthProvider>

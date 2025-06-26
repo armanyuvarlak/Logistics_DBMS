@@ -212,7 +212,7 @@ style(sidebar): improve mobile responsiveness
 - [ ] User authentication flows
 - [ ] Calculator functionality
 - [ ] Database operations
-- [ ] PDF generation
+
 - [ ] Mobile responsiveness
 - [ ] Cross-browser compatibility
 

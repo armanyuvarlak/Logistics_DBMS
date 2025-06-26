@@ -37,18 +37,21 @@ export const calculatePricing = async (chargeableWeight, originZip, destinationZ
     
     // Find lane pair data
     const lanePair = lanePairData.find(pair => 
-      (pair.originBranch === originZipData.branchName && pair.destinationBranch === destinationZipData.branchName) ||
-      (pair.originBranch === destinationZipData.branchName && pair.destinationBranch === originZipData.branchName)
+      ((pair.originHub || pair.originBranch) === (originZipData.hubName || originZipData.branchName) && 
+       (pair.destinationHub || pair.destinationBranch) === (destinationZipData.hubName || destinationZipData.branchName)) ||
+      ((pair.originHub || pair.originBranch) === (destinationZipData.hubName || destinationZipData.branchName) && 
+       (pair.destinationHub || pair.destinationBranch) === (originZipData.hubName || originZipData.branchName))
     );
     
     if (!lanePair) {
       throw new Error('Lane pair data not found');
     }
     
-    // Calculate origin branch cost
+    // Calculate origin cost
     let originCost = 0;
-    if (originZipData.fee && originZipData.fee > 0) {
-      originCost = chargeableWeight * (originZipData.fee / 100); // Convert percentage to decimal
+    const originFee = originZipData.extraFee || originZipData.fee || 0;
+    if (originFee && originFee > 0) {
+      originCost = chargeableWeight * (originFee / 100); // Convert percentage to decimal
     }
     
     // Add door service fee for origin if applicable (D2P or D2D)
@@ -56,10 +59,11 @@ export const calculatePricing = async (chargeableWeight, originZip, destinationZ
       originCost += originCost * 0.05; // Add 5% for door service
     }
     
-    // Calculate destination branch cost
+    // Calculate destination cost
     let destinationCost = 0;
-    if (destinationZipData.fee && destinationZipData.fee > 0) {
-      destinationCost = chargeableWeight * (destinationZipData.fee / 100); // Convert percentage to decimal
+    const destinationFee = destinationZipData.extraFee || destinationZipData.fee || 0;
+    if (destinationFee && destinationFee > 0) {
+      destinationCost = chargeableWeight * (destinationFee / 100); // Convert percentage to decimal
     }
     
     // Add door service fee for destination if applicable (P2D or D2D)
@@ -98,21 +102,21 @@ export const calculatePricing = async (chargeableWeight, originZip, destinationZ
       success: true,
       breakdown: {
         origin: {
-          branch: originZipData.branchName,
+          hub: originZipData.hubName || originZipData.branchName,
           zone: originZipData.zone,
-          baseCost: chargeableWeight * (originZipData.fee / 100),
-          doorFee: (serviceType === 'D2P' || serviceType === 'D2D') ? (chargeableWeight * (originZipData.fee / 100)) * 0.05 : 0,
+          baseCost: chargeableWeight * (originFee / 100),
+          doorFee: (serviceType === 'D2P' || serviceType === 'D2D') ? (chargeableWeight * (originFee / 100)) * 0.05 : 0,
           totalCost: originCost
         },
         destination: {
-          branch: destinationZipData.branchName,
+          hub: destinationZipData.hubName || destinationZipData.branchName,
           zone: destinationZipData.zone,
-          baseCost: chargeableWeight * (destinationZipData.fee / 100),
-          doorFee: (serviceType === 'P2D' || serviceType === 'D2D') ? (chargeableWeight * (destinationZipData.fee / 100)) * 0.05 : 0,
+          baseCost: chargeableWeight * (destinationFee / 100),
+          doorFee: (serviceType === 'P2D' || serviceType === 'D2D') ? (chargeableWeight * (destinationFee / 100)) * 0.05 : 0,
           totalCost: destinationCost
         },
         lanePair: {
-          route: `${originZipData.branchName} → ${destinationZipData.branchName}`,
+          route: `${originZipData.hubName || originZipData.branchName} → ${destinationZipData.hubName || destinationZipData.branchName}`,
           baseCost: chargeableWeight * (lanePair.fee / 100),
           serviceFee: (chargeableWeight * (lanePair.fee / 100)) * (serviceMultiplier - 1),
           totalCost: lanePairCost,

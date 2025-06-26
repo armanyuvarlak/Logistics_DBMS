@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { 
-  HomeIcon, 
   DocumentTextIcon, 
-  ChartBarIcon, 
   ArrowLeftOnRectangleIcon,
   CircleStackIcon,
   CalculatorIcon
@@ -12,10 +10,7 @@ import {
 const Sidebar = ({ isOpen }) => {
   const location = useLocation()
   const navigate = useNavigate()
-  const [expandedItems, setExpandedItems] = useState({
-    offers: true,
-    reviewOffers: false
-  })
+
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [password, setPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
@@ -78,28 +73,17 @@ const Sidebar = ({ isOpen }) => {
   }
   
   const getActivePage = (path) => {
-    if (path.includes('/offer')) return 'offers'
+    if (path.includes('/offer/single-offer')) return 'offer preparation'
+    if (path.includes('/offer/review-offers')) return 'review offers'
     if (path.includes('/database')) return 'database'
-    return 'offers'
+    return 'offer preparation'
   }
 
-  const getActiveSubPage = (path) => {
-    if (path.includes('/single-offer')) return 'offer-preparation'
-    if (path.includes('/review-offers')) return 'review-offers'
-    return ''
-  }
+
   
 
   
   const activePage = getActivePage(location.pathname)
-  const activeSubPage = getActiveSubPage(location.pathname)
-
-  const toggleExpand = (item) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [item]: !prev[item]
-    }))
-  }
 
   const handleDatabaseClick = (e) => {
     e.preventDefault()
@@ -112,21 +96,14 @@ const Sidebar = ({ isOpen }) => {
 
   const navigationItems = [
     {
-      name: 'Home',
-      path: '/',
-      icon: HomeIcon,
-      subItems: [
-        {
-          name: 'Offer Preparation',
-          path: '/offer/single-offer',
-          icon: CalculatorIcon
-        },
-        {
-          name: 'Review Offers',
-          path: '/offer/review-offers/general',
-          icon: CalculatorIcon
-        }
-      ]
+      name: 'Offer Preparation',
+      path: '/offer/single-offer',
+      icon: CalculatorIcon
+    },
+    {
+      name: 'Review Offers',
+      path: '/offer/review-offers/general',
+      icon: DocumentTextIcon
     },
     {
       name: 'Database',
@@ -161,65 +138,24 @@ const Sidebar = ({ isOpen }) => {
                         : 'text-gray-300 hover:bg-slate-700 hover:text-white'
                     }`}
                   >
-                    {item.subItems ? (
+                    {item.name === 'Database' ? (
                       <div 
                         className="flex items-center space-x-3 w-full"
-                        onClick={() => toggleExpand(item.name.toLowerCase())}
+                        onClick={handleDatabaseClick}
                       >
                         <item.icon className="w-6 h-6" />
                         <span className="font-medium text-lg">{item.name}</span>
                       </div>
                     ) : (
-                      item.name === 'Database' ? (
-                        <div 
-                          className="flex items-center space-x-3 w-full"
-                          onClick={handleDatabaseClick}
-                        >
-                          <item.icon className="w-5 h-5" />
-                          <span className="font-medium text-lg">{item.name}</span>
-                        </div>
-                      ) : (
-                        <Link 
-                          to={item.path}
-                          className="flex items-center space-x-3 w-full"
-                        >
-                          <item.icon className="w-6 h-6" />
-                          <span className="font-medium text-lg">{item.name}</span>
-                        </Link>
-                      )
-                    )}
-                    
-                    {item.subItems && (
-                      <svg 
-                        className={`w-5 h-5 transform transition-transform ${expandedItems[item.name.toLowerCase()] ? 'rotate-180' : ''}`} 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                        onClick={() => toggleExpand(item.name.toLowerCase())}
+                      <Link 
+                        to={item.path}
+                        className="flex items-center space-x-3 w-full"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                      </svg>
+                        <item.icon className="w-6 h-6" />
+                        <span className="font-medium text-lg">{item.name}</span>
+                      </Link>
                     )}
                   </div>
-                  
-                  {item.subItems && expandedItems[item.name.toLowerCase()] && (
-                    <div className="ml-4 mt-2 border-l-2 border-gray-700 pl-4 space-y-2">
-                      {item.subItems.map(subItem => (
-                        <div key={subItem.name} className="my-2">
-                          <Link
-                            to={subItem.path}
-                            className={`flex items-center py-2 px-2 rounded text-sm transition-colors duration-200 ${
-                              activeSubPage === subItem.name.toLowerCase().replace(' ', '-')
-                                ? 'text-blue-400 bg-slate-700'
-                                : 'text-gray-400 hover:text-white'
-                            }`}
-                          >
-                            {subItem.name}
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               ))}
             </nav>

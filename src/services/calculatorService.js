@@ -21,20 +21,23 @@ export const calculateShipping = (rows, originZip, destinationZip, volumeRatio =
   let totalGrossWeight = 0;
   let totalVolumeWeight13 = 0; // Volume weight for 1:3 ratio
   let totalVolumeWeight16 = 0; // Volume weight for 1:6 ratio
+  let totalChargeableWeight13 = 0; // Accumulated chargeable weight for 1:3 ratio
+  let totalChargeableWeight16 = 0; // Accumulated chargeable weight for 1:6 ratio
   let totalCbm = 0;
   let totalLdm = 0;
 
   rows.forEach(row => {
-    // Skip invalid rows - only require pieces, length, width for basic calculations
-    if (!row.pieces || !row.length || !row.width) {
-      return;
-    }
-
+    // Skip invalid rows - require pieces, length, width to be greater than 0
     const pieces = parseInt(row.pieces, 10) || 0;
     const length = parseFloat(row.length) || 0; // Keep in cm for calculations
     const width = parseFloat(row.width) || 0;   // Keep in cm for calculations
     const height = parseFloat(row.height) || 0; // Keep in cm for calculations
     const weight = parseFloat(row.weight) || 0; // Weight per piece in kg
+    
+    // Skip rows with zero or invalid values for required fields
+    if (pieces <= 0 || length <= 0 || width <= 0 || height <= 0) {
+      return;
+    }
     
     // Determine if stackable (handle both boolean and string formats)
     let isStackable = false;
@@ -43,55 +46,56 @@ export const calculateShipping = (rows, originZip, destinationZip, volumeRatio =
     } else if (typeof row.stackable === 'string') {
       isStackable = row.stackable.toLowerCase() === 'yes' || row.stackable === 'true';
     }
+    
+
 
     // 1. LDM Amount = width x length x pieces / 2.4
     // Convert cm to meters for LDM calculation
     const ldm = (width / 100) * (length / 100) * pieces / 2.4;
 
-    // 2. CBM Amount calculation
-    let cbm = 0;
-    if (isStackable && height > 0) {
-      // If stackable: width x length x height x pieces (convert cm to m³)
-      cbm = (width / 100) * (length / 100) * (height / 100) * pieces;
-    } else {
-      // If not stackable: width x length x pieces x 5.75 / 2.4 (convert cm to m²)
-      cbm = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
-    }
+    // 2. CBM Amount calculation (height is required and > 0)
+    // width x length x height x pieces (convert cm to m³)
+    const cbm = (width / 100) * (length / 100) * (height / 100) * pieces;
 
-    // 3. Volume weight calculation
+    // 3. Volume weight calculation (height is required and > 0)
     let volumeWeight13 = 0; // For 1:3 ratio
     let volumeWeight16 = 0; // For 1:6 ratio
     
-    if (isStackable && height > 0) {
-      // If stackable: width x length x height x pieces / 3000 or 6000
-      const volumeInCm3 = width * length * height * pieces;
-      volumeWeight13 = volumeInCm3 / 3000; // 1:3 ratio
-      volumeWeight16 = volumeInCm3 / 6000; // 1:6 ratio
-    } else {
-      // If not stackable: width x length x pieces x 5.75 / 2.4 / 333 or 166.67
-      const baseValue = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
-      volumeWeight13 = baseValue / 333;     // 1:3 ratio
-      volumeWeight16 = baseValue / 166.67;  // 1:6 ratio
+    // Calculate volume weight using actual height (height is already validated to be > 0)
+    const volumeInCm3 = width * length * height * pieces;
+    volumeWeight13 = volumeInCm3 / 3000; // 1:3 ratio
+    volumeWeight16 = volumeInCm3 / 6000; // 1:6 ratio
+
+    // Calculate chargeable weight for this row and double if non-stackable
+    const rowGrossWeight = weight * pieces;
+    let rowChargeableWeight13 = Math.max(rowGrossWeight, volumeWeight13);
+    let rowChargeableWeight16 = Math.max(rowGrossWeight, volumeWeight16);
+    
+    if (!isStackable) {
+      rowChargeableWeight13 = rowChargeableWeight13 * 2;
+      rowChargeableWeight16 = rowChargeableWeight16 * 2;
     }
 
     // Accumulate totals
     totalPieces += pieces;
-    totalGrossWeight += weight * pieces; // Total weight for all pieces
+    totalGrossWeight += rowGrossWeight;
     totalVolumeWeight13 += volumeWeight13;
     totalVolumeWeight16 += volumeWeight16;
+    totalChargeableWeight13 += rowChargeableWeight13;
+    totalChargeableWeight16 += rowChargeableWeight16;
     totalCbm += cbm;
     totalLdm += ldm;
   });
 
-  // 4. Chargeable weight = max(gross weight, volume weight)
-  const chargeableWeight13 = Math.max(totalGrossWeight, totalVolumeWeight13);
-  const chargeableWeight16 = Math.max(totalGrossWeight, totalVolumeWeight16);
+  // 4. Use accumulated chargeable weights (already includes non-stackable doubling per row)
+  let chargeableWeight13 = totalChargeableWeight13;
+  let chargeableWeight16 = totalChargeableWeight16;
 
-  // 5. Dense/Volumetric determination
+  // 6. Dense/Volumetric determination (before doubling)
   const isDense13 = totalGrossWeight >= totalVolumeWeight13;
   const isDense16 = totalGrossWeight >= totalVolumeWeight16;
 
-  // 6. Density ratio = gross weight / CBM volume
+  // 7. Density ratio = gross weight / CBM volume
   const densityRatio = totalCbm > 0 ? totalGrossWeight / totalCbm : 0;
 
   // Calculate zone if zip codes provided
@@ -132,7 +136,13 @@ export const calculateShipping = (rows, originZip, destinationZip, volumeRatio =
  * @returns {Object} - Row calculations
  */
 export const calculateRowMetrics = (row) => {
-  if (!row.pieces || !row.length || !row.width) {
+  const pieces = parseInt(row.pieces, 10) || 0;
+  const length = parseFloat(row.length) || 0;
+  const width = parseFloat(row.width) || 0;
+  const height = parseFloat(row.height) || 0;
+
+  // Return zero metrics if required fields are zero or invalid
+  if (pieces <= 0 || length <= 0 || width <= 0 || height <= 0) {
     return {
       ldm: 0,
       cbm: 0,
@@ -141,11 +151,6 @@ export const calculateRowMetrics = (row) => {
       volume: 0
     };
   }
-
-  const pieces = parseInt(row.pieces, 10) || 0;
-  const length = parseFloat(row.length) || 0;
-  const width = parseFloat(row.width) || 0;
-  const height = parseFloat(row.height) || 0;
   
   // Determine if stackable
   let isStackable = false;
@@ -158,31 +163,14 @@ export const calculateRowMetrics = (row) => {
   // LDM calculation
   const ldm = (width / 100) * (length / 100) * pieces / 2.4;
 
-  // CBM calculation
-  let cbm = 0;
-  let volume = 0; // Volume in m³ for display
-  
-  if (isStackable && height > 0) {
-    cbm = (width / 100) * (length / 100) * (height / 100) * pieces;
-    volume = cbm; // Same for stackable items
-  } else {
-    cbm = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
-    volume = cbm; // Use the calculated CBM as volume
-  }
+  // CBM calculation (height is required and > 0)
+  const cbm = (width / 100) * (length / 100) * (height / 100) * pieces;
+  const volume = cbm; // Volume in m³ for display
 
-  // Volume weight calculations
-  let volumeWeight13 = 0;
-  let volumeWeight16 = 0;
-  
-  if (isStackable && height > 0) {
-    const volumeInCm3 = width * length * height * pieces;
-    volumeWeight13 = volumeInCm3 / 3000;
-    volumeWeight16 = volumeInCm3 / 6000;
-  } else {
-    const baseValue = (width / 100) * (length / 100) * pieces * 5.75 / 2.4;
-    volumeWeight13 = baseValue / 333;
-    volumeWeight16 = baseValue / 166.67;
-  }
+  // Volume weight calculations (height is required and > 0)
+  const volumeInCm3 = width * length * height * pieces;
+  const volumeWeight13 = volumeInCm3 / 3000;
+  const volumeWeight16 = volumeInCm3 / 6000;
 
   return {
     ldm: ldm.toFixed(2),

@@ -18,7 +18,7 @@ const ShippingForm = ({ originZip, destinationZip, setOriginZip, setDestinationZ
                 name="origin-zip" 
                 required
                 value={originZip}
-                onChange={(e) => setOriginZip(e.target.value)}
+                onChange={(e) => setOriginZip(e.target.value.toUpperCase())}
                 className="w-full px-3 py-2.5 border border-borderColor rounded font-sans text-sm transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </td>
@@ -36,7 +36,7 @@ const ShippingForm = ({ originZip, destinationZip, setOriginZip, setDestinationZ
                 name="destination-zip" 
                 required
                 value={destinationZip}
-                onChange={(e) => setDestinationZip(e.target.value)}
+                onChange={(e) => setDestinationZip(e.target.value.toUpperCase())}
                 className="w-full px-3 py-2.5 border border-borderColor rounded font-sans text-sm transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </td>

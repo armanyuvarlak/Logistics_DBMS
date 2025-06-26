@@ -21,7 +21,7 @@
 
 ## 🎯 Overview
 
-The **Logistics Calculator Web Application** is a modern, responsive web platform designed for logistics professionals to calculate shipping costs, manage offers, and maintain comprehensive databases of logistics operations. The application provides real-time calculations, user authentication, data persistence, and professional PDF report generation.
+The **Logistics Calculator Web Application** is a modern, responsive web platform designed for logistics professionals to calculate shipping costs, manage offers, and maintain comprehensive databases of logistics operations. The application provides real-time calculations, user authentication and data persistence.
 
 ## ✨ Features
 
@@ -164,7 +164,7 @@ src/
 │   ├── firebaseConfig.js
 │   ├── authUtils.js
 │   ├── firebaseUtils.js
-│   └── pdfUtils.js
+
 ├── pages/               # Main application pages
 │   ├── LoginPage.jsx
 │   ├── SingleOfferPage.jsx
@@ -175,7 +175,7 @@ src/
 │   ├── calculatorService.js
 │   └── pricingService.js
 ├── utils/               # Utility functions
-│   └── clientPdfGenerator.js
+
 └── App.jsx              # Main application component
 ```
 

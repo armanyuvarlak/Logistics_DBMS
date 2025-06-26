@@ -26,14 +26,14 @@ const DatabasePage = () => {
   // Zip Code states
   const [zipCode, setZipCode] = useState('');
   const [zone, setZone] = useState('');
-  const [branchName, setBranchName] = useState('');
-  const [isBranch, setIsBranch] = useState(false);
+  const [hubName, setHubName] = useState('');
+  const [isHub, setIsHub] = useState(false);
   const [extraFee, setExtraFee] = useState('');
   const [savedZipCodes, setSavedZipCodes] = useState([]);
   
   // Lane Pair states
-  const [originBranch, setOriginBranch] = useState('');
-  const [destinationBranch, setDestinationBranch] = useState('');
+  const [originHub, setOriginHub] = useState('');
+  const [destinationHub, setDestinationHub] = useState('');
   const [fee, setFee] = useState('');
   const [ftlFee, setFtlFee] = useState('');
   const [savedLanePairs, setSavedLanePairs] = useState([]);
@@ -43,7 +43,7 @@ const DatabasePage = () => {
     const initAuth = async () => {
       try {
         await signInAnonymousUser();
-        // Always fetch zip codes first to have branch data available
+        // Always fetch zip codes first to have hub data available
         await fetchAllZipCodes();
         
         // Then fetch data based on active data type
@@ -84,21 +84,62 @@ const DatabasePage = () => {
     setError(null);
     setMessage(null);
 
-    // Validate branch name format (3 letters)
-    if (!/^[A-Za-z]{3}$/.test(branchName)) {
-      setError('Branch name must be exactly 3 letters (e.g., NYC, LAX, CHI)');
+    // Validate zip code format (2 letters + 2 numbers, e.g., TR33)
+    if (!/^[A-Za-z]{2}[0-9]{2}$/.test(zipCode)) {
+      setError('Zip code must be exactly 2 letters followed by 2 numbers (e.g., TR33, NY10, CA90)');
       setLoading(false);
       return;
     }
 
+    // Validate hub name format (3 letters)
+    if (!/^[A-Za-z]{3}$/.test(hubName)) {
+      setError('Hub name must be exactly 3 letters (e.g., NYC, LAX, CHI)');
+      setLoading(false);
+      return;
+    }
+
+    // Check for duplicate zip code (only when adding new record, not when editing)
+    if (!editingRecord) {
+      const duplicateZipCode = savedZipCodes.find(existing => 
+        existing.zipCode.toUpperCase() === zipCode.toUpperCase()
+      );
+      if (duplicateZipCode) {
+        setError(`Zip code ${zipCode} already exists in the database`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // If this is not a hub, validate that the hub name exists in the database
+    if (!isHub) {
+      const availableHubs = getAvailableHubs();
+      if (!availableHubs.includes(hubName.toUpperCase())) {
+        setError(`Hub name "${hubName}" does not exist. Please create it as a hub first or select from available hubs: ${availableHubs.join(', ')}`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Function to get fixed fee percentage based on zone
+    const getFixedFeeByZone = (zone) => {
+      switch (zone) {
+        case 'A': return 0;
+        case 'B': return 3;
+        case 'C': return 7;
+        case 'D': return 10;
+        default: return 0;
+      }
+    };
+
     try {
       let result;
+      const finalZone = isHub ? 'A' : zone;
       const zipCodeData = {
         zipCode,
-        branchName: branchName.toUpperCase(), // Always store in uppercase
-        isBranch,
-        zone: isBranch ? 'A' : zone, // Auto-set to A for branches
-        extraFee: isBranch ? 0 : (extraFee ? parseFloat(extraFee) : 0) // Auto-set to 0 for branches
+        hubName: hubName.toUpperCase(), // Always store in uppercase
+        isHub,
+        zone: finalZone, // Auto-set to A for hubs
+        extraFee: getFixedFeeByZone(finalZone) // Fixed fee based on zone
       };
 
       if (editingRecord) {
@@ -130,8 +171,8 @@ const DatabasePage = () => {
   const clearZipCodeForm = () => {
     setZipCode('');
     setZone('');
-    setBranchName('');
-    setIsBranch(false);
+    setHubName('');
+    setIsHub(false);
     setExtraFee('');
   };
 
@@ -154,12 +195,12 @@ const DatabasePage = () => {
     }
   };
 
-  // Get available branches from zip codes
-  const getAvailableBranches = () => {
+  // Get available hubs from zip codes
+  const getAvailableHubs = () => {
     return savedZipCodes
-      .filter(zipCode => zipCode.isBranch === true)
-      .map(zipCode => zipCode.branchName)
-      .filter((branchName, index, arr) => arr.indexOf(branchName) === index) // Remove duplicates
+      .filter(zipCode => zipCode.isHub === true)
+      .map(zipCode => zipCode.hubName)
+      .filter((hubName, index, arr) => arr.indexOf(hubName) === index) // Remove duplicates
       .sort(); // Sort alphabetically
   };
 
@@ -169,9 +210,9 @@ const DatabasePage = () => {
     setError(null);
     setMessage(null);
 
-    // Validate that both branches are selected and different
-    if (originBranch === destinationBranch) {
-      setError('Origin and destination branches must be different');
+    // Validate that both hubs are selected and different
+    if (originHub === destinationHub) {
+      setError('Origin and destination hubs must be different');
       setLoading(false);
       return;
     }
@@ -179,8 +220,8 @@ const DatabasePage = () => {
     try {
       let result;
       const lanePairData = {
-        originBranch,
-        destinationBranch,
+        originHub,
+        destinationHub,
         fee: parseFloat(fee),
         ftlFee: parseFloat(ftlFee)
       };
@@ -212,11 +253,13 @@ const DatabasePage = () => {
   };
 
   const clearLanePairForm = () => {
-    setOriginBranch('');
-    setDestinationBranch('');
+    setOriginHub('');
+    setDestinationHub('');
     setFee('');
     setFtlFee('');
   };
+
+
 
   // ================= COMMON FUNCTIONS =================
   
@@ -228,13 +271,13 @@ const DatabasePage = () => {
     
     if (activeDataType === 'zipCodes') {
       setZipCode(record.zipCode || '');
-      setBranchName(record.branchName || '');
-      setIsBranch(record.isBranch || false);
+      setHubName(record.hubName || '');
+      setIsHub(record.isHub || false);
       setZone(record.zone || '');
       setExtraFee(record.extraFee ? record.extraFee.toString() : '');
       } else {
-      setOriginBranch(record.originBranch || '');
-      setDestinationBranch(record.destinationBranch || '');
+      setOriginHub(record.originHub || '');
+      setDestinationHub(record.destinationHub || '');
       setFee(record.fee ? record.fee.toString() : '');
       setFtlFee(record.ftlFee ? record.ftlFee.toString() : '');
     }
@@ -308,34 +351,50 @@ const DatabasePage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="zipCode">
-              Zip Code *
+              Zip Code * <span className="text-gray-500 text-xs">(2 letters + 2 numbers, e.g., TR33)</span>
           </label>
           <input
             type="text"
             id="zipCode"
             value={zipCode}
-            onChange={(e) => setZipCode(e.target.value)}
+            onChange={(e) => setZipCode(e.target.value.toUpperCase())}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             required
+            maxLength="4"
+            placeholder="TR33"
+            pattern="[A-Za-z]{2}[0-9]{2}"
+            title="Must be exactly 2 letters followed by 2 numbers (e.g., TR33)"
           />
         </div>
         
         <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="branchName">
-              Branch Name * <span className="text-gray-500 text-xs">(3 letters, e.g., NYC)</span>
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="hubName">
+              Hub Name * <span className="text-gray-500 text-xs">(3 letters, e.g., NYC)</span>
             </label>
             <input
               type="text"
-              id="branchName"
-              value={branchName}
-              onChange={(e) => setBranchName(e.target.value.toUpperCase())}
+              id="hubName"
+              value={hubName}
+              onChange={(e) => setHubName(e.target.value.toUpperCase())}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
               maxLength="3"
-              placeholder="NYC"
+              placeholder="QIN"
               pattern="[A-Za-z]{3}"
               title="Must be exactly 3 letters"
             />
+            {!isHub && (() => {
+              const availableHubs = getAvailableHubs();
+              return availableHubs.length > 0 ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  Available hubs: {availableHubs.join(', ')}
+                </p>
+              ) : (
+                <p className="text-xs text-red-500 mt-1">
+                  No hubs available. Create a hub first by checking "This zip code is a hub location"
+                </p>
+              );
+            })()}
           </div>
         </div>
 
@@ -343,60 +402,49 @@ const DatabasePage = () => {
           <label className="flex items-center">
             <input
               type="checkbox"
-              checked={isBranch}
-              onChange={(e) => setIsBranch(e.target.checked)}
+              checked={isHub}
+              onChange={(e) => setIsHub(e.target.checked)}
               className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <span className="text-gray-700 text-sm font-bold">
-              This zip code is a branch location
+              This zip code is a hub location
             </span>
           </label>
-          {isBranch && (
+          {isHub && (
             <p className="text-sm text-blue-600 mt-1">
               Zone will be automatically set to "A" and extra fee to 0%
             </p>
           )}
         </div>
 
-        {!isBranch && (
+        {!isHub && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="zone">
-                Zone * <span className="text-gray-500 text-xs">(distance from branch)</span>
+                Zone * <span className="text-gray-500 text-xs">(distance from hub)</span>
           </label>
           <input
             type="text"
             id="zone"
             value={zone}
-            onChange={(e) => setZone(e.target.value)}
+            onChange={(e) => setZone(e.target.value.toUpperCase())}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required={!isBranch}
+                required={!isHub}
                 placeholder="A, B, C, etc."
           />
         </div>
         
         <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="extraFee">
-                Extra Fee Percentage <span className="text-gray-500 text-xs">(% of chargeable weight)</span>
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Extra Fee Percentage <span className="text-gray-500 text-xs">(automatically set based on zone)</span>
           </label>
-              <div className="relative">
-          <input
-                  type="number"
-                  id="extraFee"
-                  value={extraFee}
-                  onChange={(e) => setExtraFee(e.target.value)}
-                  className="shadow appearance-none border rounded w-full py-2 px-3 pr-8 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                  placeholder="0"
-                  min="0"
-                  max="100"
-                  step="0.001"
-                />
-                <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500">%</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                This percentage will be applied to the chargeable weight
-              </p>
-            </div>
+          <div className="bg-gray-100 border rounded w-full py-2 px-3 text-gray-700">
+            Zone A: 0% | Zone B: 3% | Zone C: 7% | Zone D: 10%
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Extra fee percentage is automatically determined by the selected zone
+          </p>
+        </div>
         </div>
         )}
         
@@ -423,8 +471,8 @@ const DatabasePage = () => {
   );
 
   const renderLanePairForm = () => {
-    const availableBranches = getAvailableBranches();
-    const hasBranches = availableBranches.length > 0;
+    const availableHubs = getAvailableHubs();
+    const hasHubs = availableHubs.length > 0;
 
     return (
       <div className="bg-white shadow-md rounded-lg p-6">
@@ -434,12 +482,12 @@ const DatabasePage = () => {
         {message && <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">{message}</div>}
         {error && <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{error}</div>}
         
-        {!hasBranches && (
+        {!hasHubs && (
           <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
-            <p className="font-medium">No branch locations available!</p>
+            <p className="font-medium">No hub locations available!</p>
             <p className="text-sm mt-1">
-              You need to add branch locations in the Zip Codes section first. 
-              Make sure to check "This zip code is a branch location" when adding branches.
+              You need to add hub locations in the Zip Codes section first. 
+              Make sure to check "This zip code is a hub location" when adding hubs.
             </p>
           </div>
         )}
@@ -447,57 +495,57 @@ const DatabasePage = () => {
         <form onSubmit={handleLanePairSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="originBranch">
-                Origin Branch *
+              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="originHub">
+                Origin Hub *
               </label>
               <select
-                id="originBranch"
-                value={originBranch}
-                onChange={(e) => setOriginBranch(e.target.value)}
+                id="originHub"
+                value={originHub}
+                onChange={(e) => setOriginHub(e.target.value)}
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 required
-                disabled={!hasBranches}
+                disabled={!hasHubs}
               >
                 <option value="">
-                  {hasBranches ? 'Select origin branch' : 'No branches available'}
+                  {hasHubs ? 'Select origin hub' : 'No hubs available'}
                 </option>
-                {availableBranches.map((branchName) => (
-                  <option key={branchName} value={branchName}>
-                    {branchName}
+                {availableHubs.map((hubName) => (
+                  <option key={hubName} value={hubName}>
+                    {hubName}
                   </option>
                 ))}
               </select>
-              {hasBranches && (
+              {hasHubs && (
                 <p className="text-xs text-gray-500 mt-1">
-                  {availableBranches.length} branch{availableBranches.length !== 1 ? 'es' : ''} available
+                  {availableHubs.length} hub{availableHubs.length !== 1 ? 's' : ''} available
                 </p>
               )}
             </div>
             
             <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="destinationBranch">
-                Destination Branch *
+              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="destinationHub">
+                Destination Hub *
               </label>
               <select
-                id="destinationBranch"
-                value={destinationBranch}
-                onChange={(e) => setDestinationBranch(e.target.value)}
+                id="destinationHub"
+                value={destinationHub}
+                onChange={(e) => setDestinationHub(e.target.value)}
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 required
-                disabled={!hasBranches}
+                disabled={!hasHubs}
               >
                 <option value="">
-                  {hasBranches ? 'Select destination branch' : 'No branches available'}
+                  {hasHubs ? 'Select destination hub' : 'No hubs available'}
                 </option>
-                {availableBranches.map((branchName) => (
-                  <option key={branchName} value={branchName}>
-                    {branchName}
+                {availableHubs.map((hubName) => (
+                  <option key={hubName} value={hubName}>
+                    {hubName}
                   </option>
                 ))}
               </select>
-              {hasBranches && (
+              {hasHubs && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Must be different from origin branch
+                  Must be different from origin hub
                 </p>
               )}
             </div>
@@ -517,7 +565,7 @@ const DatabasePage = () => {
                   min="0"
                   max="100"
                   step="0.001"
-                  disabled={!hasBranches}
+                  disabled={!hasHubs}
                   placeholder="0"
                 />
                 <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500">%</span>
@@ -542,7 +590,7 @@ const DatabasePage = () => {
                   required
                   min="0"
                   step="0.01"
-                  disabled={!hasBranches}
+                  disabled={!hasHubs}
                   placeholder="0.00"
                 />
               </div>
@@ -555,7 +603,7 @@ const DatabasePage = () => {
           <div className="flex items-center justify-between mt-6">
             <button
               type="submit"
-              disabled={loading || !hasBranches}
+              disabled={loading || !hasHubs}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
             >
               {loading ? 'Saving...' : (editingRecord ? 'Update Lane Pair' : 'Save Lane Pair')}
@@ -571,14 +619,14 @@ const DatabasePage = () => {
             )}
           </div>
           
-          {!hasBranches && (
+          {!hasHubs && (
             <div className="mt-4 text-center">
               <button
                 type="button"
                 onClick={() => handleDataTypeChange('zipCodes')}
                 className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               >
-                Go to Zip Codes to Add Branches
+                Go to Zip Codes to Add Hubs
               </button>
             </div>
           )}
@@ -619,19 +667,19 @@ const DatabasePage = () => {
                     Zip Code
                   </th>
                 <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
-                  Branch Name
+                  Hub Name
                 </th>
                 <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
-                  <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
-                    Zone
-                  </th>
-                  <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
-                  Extra Fee %
-                  </th>
-                  <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                                      <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                      Zone
+                    </th>
+                    <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                      Extra Fee %
+                    </th>
+                    <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
                   </th>
                 </tr>
               </thead>
@@ -640,12 +688,12 @@ const DatabasePage = () => {
                   <tr key={record.id}>
                     <td className="py-2 px-4 border-b border-gray-200 text-sm">{record.zipCode}</td>
                   <td className="py-2 px-4 border-b border-gray-200 text-sm font-medium">
-                    {record.branchName || record.branch || 'N/A'}
+                    {record.hubName || 'N/A'}
                   </td>
                   <td className="py-2 px-4 border-b border-gray-200 text-sm">
-                    {record.isBranch ? (
+                    {record.isHub ? (
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        Branch
+                        Hub
                       </span>
                     ) : (
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
@@ -656,13 +704,13 @@ const DatabasePage = () => {
                   <td className="py-2 px-4 border-b border-gray-200 text-sm">
                     <span className={`font-medium ${record.zone === 'A' ? 'text-green-600' : 'text-blue-600'}`}>
                       {record.zone}
-                    </span>
-                  </td>
-                  <td className="py-2 px-4 border-b border-gray-200 text-sm">
-                    {record.extraFee ? `${record.extraFee}%` : '0%'}
-                  </td>
+                                          </span>
+                    </td>
                     <td className="py-2 px-4 border-b border-gray-200 text-sm">
-                      <button
+                      {record.extraFee ? `${record.extraFee}%` : '0%'}
+                    </td>
+                      <td className="py-2 px-4 border-b border-gray-200 text-sm">
+                        <button
                         onClick={() => handleEdit(record)}
                         className="text-blue-600 hover:text-blue-900 mr-3"
                       >
@@ -702,7 +750,7 @@ const DatabasePage = () => {
   );
 
   const renderLanePairTable = () => {
-    const availableBranches = getAvailableBranches();
+    const availableHubs = getAvailableHubs();
     
     return (
       <div className="bg-white shadow-md rounded-lg p-6">
@@ -722,19 +770,19 @@ const DatabasePage = () => {
               clearLanePairForm();
             }}
             className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            disabled={availableBranches.length < 2}
-            title={availableBranches.length < 2 ? 'Need at least 2 branches to create lane pairs' : ''}
+            disabled={availableHubs.length < 2}
+            title={availableHubs.length < 2 ? 'Need at least 2 hubs to create lane pairs' : ''}
           >
             Add New Lane Pair
           </button>
         </div>
         
-        {availableBranches.length < 2 && (
+        {availableHubs.length < 2 && (
           <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
-            <p className="font-medium">Need more branches!</p>
+            <p className="font-medium">Need more hubs!</p>
             <p className="text-sm mt-1">
-              You need at least 2 branch locations to create lane pairs. 
-              Currently you have {availableBranches.length} branch{availableBranches.length !== 1 ? 'es' : ''}.
+              You need at least 2 hub locations to create lane pairs. 
+              Currently you have {availableHubs.length} hub{availableHubs.length !== 1 ? 's' : ''}.
             </p>
           </div>
         )}
@@ -752,10 +800,10 @@ const DatabasePage = () => {
               <thead>
                 <tr>
                   <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
-                    Origin Branch
+                    Origin Hub
                   </th>
                   <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
-                    Destination Branch
+                    Destination Hub
                   </th>
                   <th className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
                     Fee %
@@ -770,21 +818,21 @@ const DatabasePage = () => {
               </thead>
               <tbody>
                 {savedLanePairs.map((record) => {
-                  const originExists = availableBranches.includes(record.originBranch);
-                  const destinationExists = availableBranches.includes(record.destinationBranch);
-                  const hasInvalidBranches = !originExists || !destinationExists;
+                  const originExists = availableHubs.includes(record.originHub);
+                  const destinationExists = availableHubs.includes(record.destinationHub);
+                  const hasInvalidHubs = !originExists || !destinationExists;
                   
                   return (
-                    <tr key={record.id} className={hasInvalidBranches ? 'bg-red-50' : ''}>
+                    <tr key={record.id} className={hasInvalidHubs ? 'bg-red-50' : ''}>
                       <td className="py-2 px-4 border-b border-gray-200 text-sm">
                         <span className={!originExists ? 'text-red-600 font-medium' : ''}>
-                          {record.originBranch}
+                          {record.originHub}
                           {!originExists && ' ⚠️'}
                         </span>
                       </td>
                       <td className="py-2 px-4 border-b border-gray-200 text-sm">
                         <span className={!destinationExists ? 'text-red-600 font-medium' : ''}>
-                          {record.destinationBranch}
+                          {record.destinationHub}
                           {!destinationExists && ' ⚠️'}
                         </span>
                       </td>
@@ -798,8 +846,8 @@ const DatabasePage = () => {
                         <button
                           onClick={() => handleEdit(record)}
                           className="text-blue-600 hover:text-blue-900 mr-3"
-                          disabled={hasInvalidBranches}
-                          title={hasInvalidBranches ? 'Cannot edit - referenced branches no longer exist' : ''}
+                          disabled={hasInvalidHubs}
+                          title={hasInvalidHubs ? 'Cannot edit - referenced hubs no longer exist' : ''}
                         >
                           Edit
                         </button>
@@ -822,7 +870,7 @@ const DatabasePage = () => {
                 <button
                             onClick={() => setConfirmingDelete(record.id)}
                             className="text-red-600 hover:text-red-900"
-                            title={hasInvalidBranches ? 'Delete this invalid lane pair' : ''}
+                            title={hasInvalidHubs ? 'Delete this invalid lane pair' : ''}
                 >
                             Delete
                 </button>
@@ -835,14 +883,14 @@ const DatabasePage = () => {
             </table>
             
             {/* Show legend for invalid entries */}
-            {savedLanePairs.some(record => 
-              !availableBranches.includes(record.originBranch) || 
-              !availableBranches.includes(record.destinationBranch)
-            ) && (
+                      {savedLanePairs.some(record => 
+            !availableHubs.includes(record.originHub || record.originBranch) ||
+            !availableHubs.includes(record.destinationHub || record.destinationBranch)
+          ) && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm">
-                <p className="text-red-700 font-medium">⚠️ Warning: Some lane pairs reference branches that no longer exist</p>
+                <p className="text-red-700 font-medium">⚠️ Warning: Some lane pairs reference hubs that no longer exist</p>
                 <p className="text-red-600 text-xs mt-1">
-                  These entries are highlighted in red. You can delete them or recreate the missing branches in the Zip Codes section.
+                  These entries are highlighted in red. You can delete them or recreate the missing hubs in the Zip Codes section.
                 </p>
             </div>
           )}

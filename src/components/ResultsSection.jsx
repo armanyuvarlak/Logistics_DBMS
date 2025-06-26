@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { generateOfferPdf } from '../firebase/pdfUtils'
+
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getZipCodeData, getLanePairData } from '../firebase/firebaseUtils'
 import { calculatePricing, formatCurrency } from '../services/pricingService'
 import { calculateShipping } from '../services/calculatorService'
+import { generateOfferPDF } from '../utils/pdfGenerator'
+import { saveOffer } from '../services/offerService'
+import PDFPreview from './PDFPreview'
 
 const ResultsSection = () => {
   const location = useLocation();
@@ -20,22 +23,26 @@ const ResultsSection = () => {
   const [pricingLoading, setPricingLoading] = useState(false);
 
   // State for dropdown values - moved to top to avoid initialization errors
-  const [option1Branch, setOption1Branch] = useState('')
+  const [option1Hub, setOption1Hub] = useState('')
   const [option1Term, setOption1Term] = useState('P2P')
   const [option1VolumeRatio, setOption1VolumeRatio] = useState('1:3')
   const [option1SelectedTerm, setOption1SelectedTerm] = useState('Express')
   
-  const [option2Branch, setOption2Branch] = useState('')
+  const [option2Hub, setOption2Hub] = useState('')
   const [option2Term, setOption2Term] = useState('P2P')
   const [option2VolumeRatio, setOption2VolumeRatio] = useState('1:6')
   const [option2SelectedTerm, setOption2SelectedTerm] = useState('Express')
 
-  // Function to get branch name from zip code
-  const getBranchFromZipCode = (zipCode) => {
+  // PDF preview states
+  const [pdfPreview, setPdfPreview] = useState(null)
+  const [currentPdfOption, setCurrentPdfOption] = useState(null)
+
+  // Function to get hub name from zip code
+  const getHubFromZipCode = (zipCode) => {
     if (!zipCode || !zipCodeData.length) return zipCode || 'N/A';
     
     const zipData = zipCodeData.find(data => data.zipCode === zipCode);
-    return zipData ? zipData.branchName : zipCode;
+    return zipData ? (zipData.hubName || zipData.branchName) : zipCode;
   };
 
   // Function to get zone from zip code
@@ -48,15 +55,14 @@ const ResultsSection = () => {
 
   // Function to get chargeable weight based on volume ratio
   const getChargeableWeightForRatio = (volumeRatio) => {
-    if (calculationType === 'quick' || calculationType === 'single-quick') {
-      return chargeableWeight || 0;
-    }
-    
+    // For detailed calculations, use the calculated chargeable weight for the specific ratio
     if (calculations && calculations.summary && calculations.summary.ratios) {
       const ratio = volumeRatio === '1:3' ? '1:3' : '1:6';
       return parseFloat(calculations.summary.ratios[ratio].chargeableWeight) || 0;
     }
     
+    // For quick mode, both ratios use the same entered chargeable weight
+    // Volume ratio dropdown is just for display/categorization, not pricing calculation
     return chargeableWeight || 0;
   };
 
@@ -65,10 +71,10 @@ const ResultsSection = () => {
     try {
       if (!originZip || !destinationZip || !zipCodeData.length) return;
 
-      const originBranch = getBranchFromZipCode(originZip);
-      const destinationBranch = getBranchFromZipCode(destinationZip);
+      const originHub = getHubFromZipCode(originZip);
+      const destinationHub = getHubFromZipCode(destinationZip);
 
-      if (!originBranch || !destinationBranch) return;
+      if (!originHub || !destinationHub) return;
 
       const lanePairResult = await getLanePairData();
       if (lanePairResult.success && lanePairResult.data) {
@@ -76,8 +82,8 @@ const ResultsSection = () => {
         
         // Find the lane pair (either direction)
         const lanePair = lanePairData.find(pair => 
-          (pair.originBranch === originBranch && pair.destinationBranch === destinationBranch) ||
-          (pair.originBranch === destinationBranch && pair.destinationBranch === originBranch)
+          ((pair.originHub || pair.originBranch) === originHub && (pair.destinationHub || pair.destinationBranch) === destinationHub) ||
+          ((pair.originHub || pair.originBranch) === destinationHub && (pair.destinationHub || pair.destinationBranch) === originHub)
         );
 
         if (lanePair && lanePair.ftlFee) {
@@ -95,33 +101,33 @@ const ResultsSection = () => {
     
     setPricingLoading(true);
     try {
-      // Get chargeable weights for both ratios
-      const chargeableWeight13 = getChargeableWeightForRatio('1:3');
-      const chargeableWeight16 = getChargeableWeightForRatio('1:6');
+      console.log('Calculating pricing for both options with their respective settings');
       
-      console.log('Calculating pricing with weights:', { chargeableWeight13, chargeableWeight16 });
-      
-      // Calculate pricing for Option 1 (1:3 ratio)
-      const option1Result = await calculatePricing(
-        chargeableWeight13,
-        originZip,
-        destinationZip,
-        option1Term,
-        option1SelectedTerm,
-        '1:3'
-      );
-      setOption1Pricing(option1Result);
-      
-      // Calculate pricing for Option 2 (1:6 ratio)
-      const option2Result = await calculatePricing(
-        chargeableWeight16,
-        originZip,
-        destinationZip,
-        option2Term,
-        option2SelectedTerm,
-        '1:6'
-      );
-      setOption2Pricing(option2Result);
+              // Calculate pricing for Option 1 using its selected volume ratio
+        const option1Weight = getChargeableWeightForRatio(option1VolumeRatio);
+        console.log('Option 1 - Volume Ratio:', option1VolumeRatio, 'Weight:', option1Weight, 'Service:', option1Term, 'Term:', option1SelectedTerm);
+        const option1Result = await calculatePricing(
+          option1Weight,
+          originZip,
+          destinationZip,
+          option1Term,
+          option1SelectedTerm,
+          option1VolumeRatio
+        );
+        setOption1Pricing(option1Result);
+        
+        // Calculate pricing for Option 2 using its selected volume ratio
+        const option2Weight = getChargeableWeightForRatio(option2VolumeRatio);
+        console.log('Option 2 - Volume Ratio:', option2VolumeRatio, 'Weight:', option2Weight, 'Service:', option2Term, 'Term:', option2SelectedTerm);
+        const option2Result = await calculatePricing(
+          option2Weight,
+          originZip,
+          destinationZip,
+          option2Term,
+          option2SelectedTerm,
+          option2VolumeRatio
+        );
+        setOption2Pricing(option2Result);
       
     } catch (error) {
       console.error('Error calculating pricing:', error);
@@ -167,10 +173,37 @@ const ResultsSection = () => {
 
   // Recalculate pricing when relevant states change
   useEffect(() => {
+    console.log('useEffect triggered - Dependencies changed:', {
+      zipCodeDataLength: zipCodeData.length,
+      calculationType,
+      option1Term,
+      option1SelectedTerm,
+      option1VolumeRatio,
+      option2Term,
+      option2SelectedTerm,
+      option2VolumeRatio
+    });
+    
     if (zipCodeData.length > 0 && (calculations || calculationType === 'quick' || calculationType === 'single-quick')) {
+      console.log('Triggering calculatePricingForOptions...');
       calculatePricingForOptions();
+    } else {
+      console.log('Conditions not met for pricing calculation:', {
+        hasZipCodeData: zipCodeData.length > 0,
+        hasCalculations: !!calculations,
+        calculationType
+      });
     }
   }, [zipCodeData, calculations, option1Term, option1SelectedTerm, option1VolumeRatio, option2Term, option2SelectedTerm, option2VolumeRatio]);
+
+  // Cleanup PDF URLs on component unmount
+  useEffect(() => {
+    return () => {
+      if (pdfPreview && pdfPreview.cleanup) {
+        pdfPreview.cleanup();
+      }
+    };
+  }, [pdfPreview]);
 
   // Function to determine service text based on service type and row index
   const getServiceText = (index, term) => {
@@ -179,48 +212,182 @@ const ResultsSection = () => {
     if (term.endsWith('D') && index === 1) return 'Delivery';
     return '';
   };
+
+  // Function to generate route string (e.g., "ISTFRA")
+  const getRouteString = () => {
+    const originHub = getHubFromZipCode(originZip);
+    const destinationHub = getHubFromZipCode(destinationZip);
+    
+    if (!originHub || !destinationHub || originHub === 'N/A' || destinationHub === 'N/A') {
+      return 'ROUTE';
+    }
+    
+    // Take first 3 characters of each hub name and combine
+    const originCode = originHub.substring(0, 3).toUpperCase();
+    const destinationCode = destinationHub.substring(0, 3).toUpperCase();
+    
+    return `${originCode}${destinationCode}`;
+  };
   
 
   
   // Handler for prepare offer buttons
   const handlePrepareOffer = async (option) => {
+    console.log('handlePrepareOffer called with option:', option);
     setIsGenerating(true);
     try {
-      const branch = option === 1 ? option1Branch : option2Branch;
-      const term = option === 1 ? option1Term : option2Term;
-      const volumeRatio = option === 1 ? option1VolumeRatio : option2VolumeRatio;
+      // Determine which option we're working with
       const pricing = option === 1 ? option1Pricing : option2Pricing;
+      const term = option === 1 ? option1Term : option2Term;
+      const selectedTerm = option === 1 ? option1SelectedTerm : option2SelectedTerm;
+      const volumeRatio = option === 1 ? option1VolumeRatio : option2VolumeRatio;
       
+      if (!pricing || !pricing.success) {
+        alert('No pricing data available for this option. Please calculate pricing first.');
+        return;
+      }
+
+      // Prepare offer data for PDF
       const offerData = {
-        type: calculationType === 'single-quick' ? 'Single Offer (Quick)' : 'Single Offer',
-        option: option,
-        origin: originZip || 'Not specified',
-        destination: destinationZip || 'Not specified',
-        branch: branch,
+        origin: originZip,
+        destination: destinationZip,
+        originZone: getZoneFromZipCode(originZip),
+        destinationZone: getZoneFromZipCode(destinationZip),
+        serviceType: term,
+        selectedTerm: selectedTerm,
         volumeRatio: volumeRatio,
-        term: term,
-        service: term, // Using term as the service type now
-        chargeableWeight: pricing?.breakdown?.chargeableWeight || chargeableWeight,
-        rows: rows,
-        ftlValue: `€${ftlFee.toFixed(2)}`,
-        pricing: pricing?.breakdown,
-        timestamp: new Date().toISOString()
+        chargeableWeight: getChargeableWeightForRatio(volumeRatio),
+        ftlFee: ftlFee || 0,
+        breakdown: pricing.breakdown,
+        routeString: getRouteString()
       };
       
-      const filename = `single-offer-${originZip || 'unknown'}-${destinationZip || 'unknown'}-option${option}-${Date.now()}`;
-      const result = await generateOfferPdf(offerData, filename, 'offers/single');
+      // Generate PDF
+      console.log('Calling generateOfferPDF...');
+      const pdfResult = await generateOfferPDF(option, offerData);
+      console.log('PDF result:', pdfResult);
       
-      if (result.success) {
-        alert(`PDF Generated Successfully! It will open in a new tab.`);
-        window.open(result.downloadUrl, '_blank');
+      if (pdfResult.success) {
+        console.log('PDF generation successful, showing preview');
+        // Show PDF preview
+        setPdfPreview(pdfResult);
+        setCurrentPdfOption(option);
       } else {
-        alert('Failed to generate PDF. Please try again.');
+        console.log('PDF generation failed:', pdfResult.error);
+        alert(`Error generating PDF: ${pdfResult.error}`);
       }
+      
     } catch (error) {
-      console.error('PDF generation error:', error);
-      alert(`Error generating PDF: ${error.message}`);
+      console.error('Offer preparation error:', error);
+      alert(`Error preparing offer: ${error.message}`);
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  // Close PDF preview
+  const closePdfPreview = () => {
+    if (pdfPreview && pdfPreview.cleanup) {
+      pdfPreview.cleanup();
+    }
+    setPdfPreview(null);
+    setCurrentPdfOption(null);
+  }
+
+  // Download PDF
+  const downloadPdf = async (clientName) => {
+    console.log('Downloading PDF for client:', clientName);
+    try {
+      // Regenerate PDF with client name
+      const optionNumber = currentPdfOption;
+      const pricing = optionNumber === 1 ? option1Pricing : option2Pricing;
+      const term = optionNumber === 1 ? option1Term : option2Term;
+      const selectedTerm = optionNumber === 1 ? option1SelectedTerm : option2SelectedTerm;
+      const volumeRatio = optionNumber === 1 ? option1VolumeRatio : option2VolumeRatio;
+      
+      // Prepare offer data for PDF
+      const offerData = {
+        origin: originZip,
+        destination: destinationZip,
+        originZone: getZoneFromZipCode(originZip),
+        destinationZone: getZoneFromZipCode(destinationZip),
+        serviceType: term,
+        selectedTerm: selectedTerm,
+        volumeRatio: volumeRatio,
+        chargeableWeight: getChargeableWeightForRatio(volumeRatio),
+        ftlFee: ftlFee || 0,
+        breakdown: pricing.breakdown,
+        routeString: getRouteString()
+      };
+      
+      // Generate PDF with client name
+      const pdfResult = await generateOfferPDF(optionNumber, offerData, clientName);
+      
+      if (pdfResult.success && pdfResult.downloadPDF) {
+        pdfResult.downloadPDF();
+        // Clean up the new PDF blob
+        if (pdfResult.cleanup) {
+          setTimeout(() => pdfResult.cleanup(), 1000); // Clean up after download
+        }
+      } else {
+        alert('Error generating PDF for download');
+      }
+      
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert(`Error downloading PDF: ${error.message}`);
+    }
+  }
+
+  // Add as offer function
+  const handleAddAsOffer = async (clientName) => {
+    try {
+      // Determine which option we're working with
+      const optionNumber = currentPdfOption;
+      const pricing = optionNumber === 1 ? option1Pricing : option2Pricing;
+      const term = optionNumber === 1 ? option1Term : option2Term;
+      const selectedTerm = optionNumber === 1 ? option1SelectedTerm : option2SelectedTerm;
+      const volumeRatio = optionNumber === 1 ? option1VolumeRatio : option2VolumeRatio;
+      
+      if (!pricing || !pricing.success) {
+        alert('No pricing data available for this option');
+        return;
+      }
+
+      // Create offer data object
+      const offerData = {
+        optionNumber,
+        calculationType,
+        origin: originZip,
+        destination: destinationZip,
+        originHub: getHubFromZipCode(originZip),
+        destinationHub: getHubFromZipCode(destinationZip),
+        serviceType: term,
+        term: selectedTerm,
+        volumeRatio,
+        chargeableWeight: getChargeableWeightForRatio(volumeRatio),
+        totalCost: pricing.breakdown.totalCost,
+        ftlFee,
+        breakdown: pricing.breakdown,
+        rows: rows || [],
+        routeString: getRouteString(),
+        clientName: clientName // Add client name to offer data
+      };
+
+      // Save the offer
+      const result = saveOffer(offerData);
+      
+      if (result.success) {
+        alert(`Offer ${result.offer.id} has been successfully added to Review Offers for client: ${clientName}!`);
+        // Close the PDF preview
+        closePdfPreview();
+      } else {
+        alert(`Failed to save offer: ${result.error}`);
+      }
+      
+    } catch (error) {
+      console.error('Error adding offer:', error);
+      alert(`Error adding offer: ${error.message}`);
     }
   }
   
@@ -251,16 +418,6 @@ const ResultsSection = () => {
               {calculationType === 'single-quick' && (
                 <p className="text-sm text-gray-600 mt-1">Calculation based on chargeable weight: {chargeableWeight} kg</p>
               )}
-              
-              {/* Display branch names from zip codes - bigger and more prominent */}
-              {(originZip || destinationZip) && (
-                <div className="mt-4 mb-2 text-center bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="text-lg font-bold text-blue-800 mb-1">Lane Pair</div>
-                  <div className="text-xl font-semibold text-blue-900">
-                    {getBranchFromZipCode(originZip)} → {getBranchFromZipCode(destinationZip)}
-                  </div>
-                </div>
-              )}
             </div>
             
             {/* Back to Calculation button in header */}
@@ -278,8 +435,13 @@ const ResultsSection = () => {
         <div className="card-body">
           <div className="flex flex-wrap gap-[30px] justify-between w-full max-w-[1400px]">
             {/* First Result Table */}
-            <div className="flex-1 basis-[45%] max-w-full">
-              <h3 className="text-lg font-semibold mb-4 text-[var(--text-dark)] border-b pb-2">Option 1</h3>
+            <div className="flex-1 basis-[45%] max-w-full p-6 bg-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
+              <h3 className="text-lg font-semibold mb-4 text-blue-800 border-b-2 border-blue-300 pb-2 bg-blue-100 -mx-6 -mt-6 mb-6 px-6 pt-4 rounded-t-lg">
+                <span className="inline-flex items-center">
+                  <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-2">1</span>
+                  Option 1
+                </span>
+              </h3>
               
               {/* Dropdowns Row */}
               <div className="flex gap-3 mb-4">
@@ -300,7 +462,10 @@ const ResultsSection = () => {
                   <select 
                     className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-center"
                     value={option1Term}
-                    onChange={(e) => setOption1Term(e.target.value)}
+                    onChange={(e) => {
+                      console.log('Option 1 Service changed to:', e.target.value);
+                      setOption1Term(e.target.value);
+                    }}
                   >
                     <option value="P2P">Port to Port (P2P)</option>
                     <option value="P2D">Port to Door (P2D)</option>
@@ -313,7 +478,10 @@ const ResultsSection = () => {
                   <select 
                     className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-center"
                     value={option1VolumeRatio}
-                    onChange={(e) => setOption1VolumeRatio(e.target.value)}
+                    onChange={(e) => {
+                      console.log('Option 1 Volume Ratio changed to:', e.target.value);
+                      setOption1VolumeRatio(e.target.value);
+                    }}
                   >
                     <option value="1:3">1:3</option>
                     <option value="1:6">1:6</option>
@@ -327,8 +495,6 @@ const ResultsSection = () => {
                     <tr className="bg-gray-100">
                       <th className="text-center border border-gray-200 p-3">Branch</th>
                       <th className="text-center border border-gray-200 p-3">Zone</th>
-                      <th className="text-center border border-gray-200 p-3">Term</th>
-                      <th className="text-center border border-gray-200 p-3">Service</th>
                       <th className="text-center border border-gray-200 p-3">Euro in Total</th>
                       <th className="text-center border border-gray-200 p-3">Ftl</th>
                     </tr>
@@ -336,18 +502,8 @@ const ResultsSection = () => {
                   <tbody>
                     {/* First Row - Origin */}
                     <tr className="bg-white hover:bg-gray-50">
-                      <td className="text-center border border-gray-200 p-3">{getBranchFromZipCode(originZip)}</td>
+                      <td className="text-center border border-gray-200 p-3">{originZip}</td>
                       <td className="text-center border border-gray-200 p-3">{getZoneFromZipCode(originZip)}</td>
-                      <td rowSpan="3" className="align-middle text-center font-bold bg-green-50 border border-gray-200 p-3">
-                        <div className="flex justify-center items-center h-full">
-                          <span className="inline-block text-lg font-medium text-green-700">{option1SelectedTerm}</span>
-                        </div>
-                      </td>
-                      <td rowSpan="3" className="align-middle text-center font-bold bg-blue-50 border border-gray-200 p-3">
-                        <div className="flex justify-center items-center h-full">
-                          <span className="inline-block text-lg font-medium text-blue-700">{option1Term}</span>
-                        </div>
-                      </td>
                       <td className="text-center border border-gray-200 p-3 font-semibold">
                         {pricingLoading ? 'Calculating...' : (option1Pricing?.success ? formatCurrency(option1Pricing.breakdown.origin.totalCost) : '€0.00')}
                       </td>
@@ -359,7 +515,7 @@ const ResultsSection = () => {
                     </tr>
                     {/* Second Row - Destination */}
                     <tr className="bg-gray-50 hover:bg-gray-100">
-                      <td className="text-center border border-gray-200 p-3">{getBranchFromZipCode(destinationZip)}</td>
+                      <td className="text-center border border-gray-200 p-3">{destinationZip}</td>
                       <td className="text-center border border-gray-200 p-3">{getZoneFromZipCode(destinationZip)}</td>
                       <td className="text-center border border-gray-200 p-3 font-semibold">
                         {pricingLoading ? 'Calculating...' : (option1Pricing?.success ? formatCurrency(option1Pricing.breakdown.destination.totalCost) : '€0.00')}
@@ -368,7 +524,7 @@ const ResultsSection = () => {
                     {/* Third Row - Total (including lane pair calculations) */}
                     <tr className="bg-yellow-50 border-t-2 border-yellow-400">
                       <td colSpan="2" className="text-center border border-gray-200 p-3 font-bold text-gray-800">
-                        TOTAL
+                        {getRouteString()}
                       </td>
                       <td className="text-center border border-gray-200 p-3 font-bold text-lg text-green-700">
                         {pricingLoading ? 'Calculating...' : (option1Pricing?.success ? formatCurrency(option1Pricing.breakdown.totalCost) : '€0.00')}
@@ -389,8 +545,13 @@ const ResultsSection = () => {
             </div>
 
             {/* Second Result Table */}
-            <div className="flex-1 basis-[45%] max-w-full">
-              <h3 className="text-lg font-semibold mb-4 text-[var(--text-dark)] border-b pb-2">Option 2</h3>
+            <div className="flex-1 basis-[45%] max-w-full p-6 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
+              <h3 className="text-lg font-semibold mb-4 text-green-800 border-b-2 border-green-300 pb-2 bg-green-100 -mx-6 -mt-6 mb-6 px-6 pt-4 rounded-t-lg">
+                <span className="inline-flex items-center">
+                  <span className="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-2">2</span>
+                  Option 2
+                </span>
+              </h3>
               
               {/* Dropdowns Row */}
               <div className="flex gap-3 mb-4">
@@ -438,8 +599,6 @@ const ResultsSection = () => {
                     <tr className="bg-gray-100">
                       <th className="text-center border border-gray-200 p-3">Branch</th>
                       <th className="text-center border border-gray-200 p-3">Zone</th>
-                      <th className="text-center border border-gray-200 p-3">Term</th>
-                      <th className="text-center border border-gray-200 p-3">Service</th>
                       <th className="text-center border border-gray-200 p-3">Euro in Total</th>
                       <th className="text-center border border-gray-200 p-3">Ftl</th>
                     </tr>
@@ -447,18 +606,8 @@ const ResultsSection = () => {
                   <tbody>
                     {/* First Row - Origin */}
                     <tr className="bg-white hover:bg-gray-50">
-                      <td className="text-center border border-gray-200 p-3">{getBranchFromZipCode(originZip)}</td>
+                      <td className="text-center border border-gray-200 p-3">{originZip}</td>
                       <td className="text-center border border-gray-200 p-3">{getZoneFromZipCode(originZip)}</td>
-                      <td rowSpan="3" className="align-middle text-center font-bold bg-green-50 border border-gray-200 p-3">
-                        <div className="flex justify-center items-center h-full">
-                          <span className="inline-block text-lg font-medium text-green-700">{option2SelectedTerm}</span>
-                        </div>
-                      </td>
-                      <td rowSpan="3" className="align-middle text-center font-bold bg-blue-50 border border-gray-200 p-3">
-                        <div className="flex justify-center items-center h-full">
-                          <span className="inline-block text-lg font-medium text-blue-700">{option2Term}</span>
-                        </div>
-                      </td>
                       <td className="text-center border border-gray-200 p-3 font-semibold">
                         {pricingLoading ? 'Calculating...' : (option2Pricing?.success ? formatCurrency(option2Pricing.breakdown.origin.totalCost) : '€0.00')}
                       </td>
@@ -470,7 +619,7 @@ const ResultsSection = () => {
                     </tr>
                     {/* Second Row - Destination */}
                     <tr className="bg-gray-50 hover:bg-gray-100">
-                      <td className="text-center border border-gray-200 p-3">{getBranchFromZipCode(destinationZip)}</td>
+                      <td className="text-center border border-gray-200 p-3">{destinationZip}</td>
                       <td className="text-center border border-gray-200 p-3">{getZoneFromZipCode(destinationZip)}</td>
                       <td className="text-center border border-gray-200 p-3 font-semibold">
                         {pricingLoading ? 'Calculating...' : (option2Pricing?.success ? formatCurrency(option2Pricing.breakdown.destination.totalCost) : '€0.00')}
@@ -479,7 +628,7 @@ const ResultsSection = () => {
                     {/* Third Row - Total (including lane pair calculations) */}
                     <tr className="bg-yellow-50 border-t-2 border-yellow-400">
                       <td colSpan="2" className="text-center border border-gray-200 p-3 font-bold text-gray-800">
-                        TOTAL
+                        {getRouteString()}
                       </td>
                       <td className="text-center border border-gray-200 p-3 font-bold text-lg text-green-700">
                         {pricingLoading ? 'Calculating...' : (option2Pricing?.success ? formatCurrency(option2Pricing.breakdown.totalCost) : '€0.00')}
@@ -501,6 +650,17 @@ const ResultsSection = () => {
           </div>
         </div>
       </div>
+
+      {/* PDF Preview Modal */}
+      {pdfPreview && (
+        <PDFPreview
+          pdfUrl={pdfPreview.pdfUrl}
+          onDownload={downloadPdf}
+          onClose={closePdfPreview}
+          onAddAsOffer={handleAddAsOffer}
+          optionNumber={currentPdfOption}
+        />
+      )}
     </div>
   )
 }

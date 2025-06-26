@@ -16,16 +16,16 @@ const SingleOfferPage = () => {
   const [validationError, setValidationError] = useState('');
   const formRef = useRef(null);
 
-  // Function to get branch name from zip code
-  const getBranchFromZipCode = async (zipCode, zipCodeData) => {
-    const zipData = zipCodeData.find(data => data.zipCode === zipCode);
-    return zipData ? zipData.branchName : null;
-  };
+  // Function to get hub name from zip code
+const getHubFromZipCode = async (zipCode, zipCodeData) => {
+  const zipData = zipCodeData.find(data => data.zipCode === zipCode);
+  return zipData ? (zipData.hubName || zipData.branchName) : null;
+};
 
   // Function to validate lane pair exists
   const validateLanePair = async (originZip, destinationZip) => {
     try {
-      // Fetch zip code data to get branch names
+      // Fetch zip code data to get hub names
       const zipResult = await getZipCodeData();
       if (!zipResult.success || !zipResult.data) {
         throw new Error('Unable to fetch zip code data');
@@ -33,15 +33,15 @@ const SingleOfferPage = () => {
 
       const zipCodeData = Array.isArray(zipResult.data) ? zipResult.data : [zipResult.data];
       
-      // Get branch names for origin and destination
-      const originBranch = await getBranchFromZipCode(originZip, zipCodeData);
-      const destinationBranch = await getBranchFromZipCode(destinationZip, zipCodeData);
+      // Get hub names for origin and destination
+      const originHub = await getHubFromZipCode(originZip, zipCodeData);
+      const destinationHub = await getHubFromZipCode(destinationZip, zipCodeData);
 
-      if (!originBranch) {
+      if (!originHub) {
         throw new Error(`Origin zip code "${originZip}" not found in database`);
       }
 
-      if (!destinationBranch) {
+      if (!destinationHub) {
         throw new Error(`Destination zip code "${destinationZip}" not found in database`);
       }
 
@@ -55,12 +55,12 @@ const SingleOfferPage = () => {
       
       // Check if lane pair exists (either direction)
       const lanePairExists = lanePairData.some(pair => 
-        (pair.originBranch === originBranch && pair.destinationBranch === destinationBranch) ||
-        (pair.originBranch === destinationBranch && pair.destinationBranch === originBranch)
+        ((pair.originHub || pair.originBranch) === originHub && (pair.destinationHub || pair.destinationBranch) === destinationHub) ||
+        ((pair.originHub || pair.originBranch) === destinationHub && (pair.destinationHub || pair.destinationBranch) === originHub)
       );
 
       if (!lanePairExists) {
-        throw new Error(`No lane pair found for route ${originBranch} ↔ ${destinationBranch}. Please contact administrator to add this route.`);
+        throw new Error(`No lane pair found for route ${originHub} ↔ ${destinationHub}. Please contact administrator to add this route.`);
       }
 
       return true;
@@ -93,6 +93,40 @@ const SingleOfferPage = () => {
 
       // If validation passes, proceed with navigation
       if (entryMode === 'detailed') {
+        // Validation for detailed entry mode
+        if (rows.length === 0) {
+          setValidationError('Please add at least one row with item details');
+          setIsValidating(false);
+          return;
+        }
+        
+        const invalidRows = [];
+        
+        rows.forEach((row, index) => {
+          const pieces = parseInt(row.pieces, 10) || 0;
+          const length = parseFloat(row.length) || 0;
+          const width = parseFloat(row.width) || 0;
+          const height = parseFloat(row.height) || 0;
+          const weight = parseFloat(row.weight) || 0;
+          
+          const missingFields = [];
+          if (pieces <= 0) missingFields.push('Pieces');
+          if (weight <= 0) missingFields.push('Weight');
+          if (length <= 0) missingFields.push('Length');
+          if (width <= 0) missingFields.push('Width');
+          if (height <= 0) missingFields.push('Height');
+          
+          if (missingFields.length > 0) {
+            invalidRows.push(`Row ${index + 1}: ${missingFields.join(', ')} must be greater than 0`);
+          }
+        });
+        
+        if (invalidRows.length > 0) {
+          setValidationError('Please fix the following issues:\n\n' + invalidRows.join('\n'));
+          setIsValidating(false);
+          return;
+        }
+
         // Calculate metrics for each row using the new calculation service
         const rowsWithCalculations = rows.map(row => {
           const metrics = calculateRowMetrics(row);
@@ -121,7 +155,7 @@ const SingleOfferPage = () => {
       } else {
         // Quick entry with just chargeable weight
         if (!chargeableWeight || parseFloat(chargeableWeight) <= 0) {
-          setValidationError('Please enter a valid chargeable weight');
+          setValidationError('Please enter a chargeable weight greater than 0');
           setIsValidating(false);
           return;
         }
@@ -144,6 +178,13 @@ const SingleOfferPage = () => {
   };
 
   const handleRowChange = (id, field, value) => {
+    // For numeric fields, prevent zero values but allow empty strings for typing
+    if (['pieces', 'weight', 'length', 'width', 'height'].includes(field)) {
+      if (value !== '' && parseFloat(value) <= 0) {
+        return; // Don't update if value is zero or negative
+      }
+    }
+    
     const newRows = [...rows];
     const index = newRows.findIndex(row => row.id === id);
     if (index !== -1) {
@@ -251,8 +292,8 @@ const SingleOfferPage = () => {
                       </svg>
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">Route Validation Error</h3>
-                      <p className="text-sm text-red-700 mt-1">{validationError}</p>
+                      <h3 className="text-sm font-medium text-red-800">Validation Error</h3>
+                      <div className="text-sm text-red-700 mt-1 whitespace-pre-line">{validationError}</div>
                     </div>
                   </div>
                 </div>
@@ -269,7 +310,7 @@ const SingleOfferPage = () => {
                     type="text"
                     placeholder="Enter origin zip code"
                     value={originZip}
-                    onChange={(e) => setOriginZip(e.target.value)}
+                    onChange={(e) => setOriginZip(e.target.value.toUpperCase())}
                   />
                 </div>
                 <div className="w-full md:w-1/2 px-3">
@@ -282,7 +323,7 @@ const SingleOfferPage = () => {
                     type="text"
                     placeholder="Enter destination zip code"
                     value={destinationZip}
-                    onChange={(e) => setDestinationZip(e.target.value)}
+                    onChange={(e) => setDestinationZip(e.target.value.toUpperCase())}
                   />
                 </div>
               </div>
@@ -293,133 +334,140 @@ const SingleOfferPage = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-4">Item Information</h3>
             </div>
             
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h4 className="text-sm font-medium text-blue-800">Required Input Units</h4>
-                  <div className="mt-1 text-sm text-blue-700">
-                    Please enter all measurements using these units:
-                    <ul className="list-disc list-inside mt-1 space-y-0.5">
-                      <li><strong>Weight:</strong> Kilograms (kg)</li>
-                      <li><strong>Dimensions (Length, Width, Height):</strong> Centimeters (cm)</li>
-                      <li><strong>Pieces:</strong> Number of items</li>
-                    </ul>
+            {entryMode === 'detailed' ? (
+              <>
+                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="text-sm font-medium text-blue-800">Required Input Units</h4>
+                      <div className="mt-1 text-sm text-blue-700">
+                        Please enter all measurements using these units:
+                        <ul className="list-disc list-inside mt-1 space-y-0.5">
+                          <li><strong>Weight:</strong> Kilograms (kg)</li>
+                          <li><strong>Dimensions (Length, Width, Height):</strong> Centimeters (cm)</li>
+                          <li><strong>Pieces:</strong> Number of items</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            
-            {entryMode === 'detailed' ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-200">
-                  <thead>
-                    <tr>
-                      <th className="px-4 py-2 border-b text-center">Pieces</th>
-                      <th className="px-4 py-2 border-b text-center">Weight</th>
-                      <th className="px-4 py-2 border-b text-center">Length</th>
-                      <th className="px-4 py-2 border-b text-center">Width</th>
-                      <th className="px-4 py-2 border-b text-center">Height</th>
-                      <th className="px-4 py-2 border-b text-center">Stackable</th>
-                      <th className="px-4 py-2 border-b text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row.id} className="border-b">
-                        <td className="px-4 py-2 border-b">
-                          <input
-                            type="number"
-                            className="w-full px-2 py-1 border rounded"
-                            value={row.pieces}
-                            onChange={(e) => handleRowChange(row.id, 'pieces', e.target.value)}
-                            placeholder="Enter number"
-                          />
-                        </td>
-                        <td className="px-4 py-2 border-b">
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-full px-2 py-1 border rounded"
-                            value={row.weight}
-                            onChange={(e) => handleRowChange(row.id, 'weight', e.target.value)}
-                            placeholder="Weight in kg"
-                          />
-                        </td>
-                        <td className="px-4 py-2 border-b">
-                          <input
-                            type="number"
-                            step="0.1"
-                            className="w-full px-2 py-1 border rounded"
-                            value={row.length}
-                            onChange={(e) => handleRowChange(row.id, 'length', e.target.value)}
-                            placeholder="Length in cm"
-                          />
-                        </td>
-                        <td className="px-4 py-2 border-b">
-                          <input
-                            type="number"
-                            step="0.1"
-                            className="w-full px-2 py-1 border rounded"
-                            value={row.width}
-                            onChange={(e) => handleRowChange(row.id, 'width', e.target.value)}
-                            placeholder="Width in cm"
-                          />
-                        </td>
-                        <td className="px-4 py-2 border-b">
-                          <input
-                            type="number"
-                            step="0.1"
-                            className="w-full px-2 py-1 border rounded"
-                            value={row.height}
-                            onChange={(e) => handleRowChange(row.id, 'height', e.target.value)}
-                            placeholder="Height in cm"
-                          />
-                        </td>
-                        <td className="px-4 py-2 border-b">
-                          <button
-                            type="button"
-                            onClick={() => toggleStackable(row.id)}
-                            className={`w-full px-3 py-1 rounded font-medium ${
-                              row.stackable === 'Yes' 
-                                ? 'bg-green-100 text-green-800 border border-green-400'
-                                : 'bg-red-100 text-red-800 border border-red-400'
-                            }`}
-                          >
-                            {row.stackable}
-                          </button>
-                        </td>
-                        <td className="px-4 py-2 border-b">
-                          {rows.length > 1 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border border-gray-200">
+                    <thead>
+                      <tr>
+                        <th className="px-4 py-2 border-b text-center">Pieces</th>
+                        <th className="px-4 py-2 border-b text-center">Weight</th>
+                        <th className="px-4 py-2 border-b text-center">Length</th>
+                        <th className="px-4 py-2 border-b text-center">Width</th>
+                        <th className="px-4 py-2 border-b text-center">Height</th>
+                        <th className="px-4 py-2 border-b text-center">Stackable</th>
+                        <th className="px-4 py-2 border-b text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row) => (
+                        <tr key={row.id} className="border-b">
+                          <td className="px-4 py-2 border-b">
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              className="w-full px-2 py-1 border rounded"
+                              value={row.pieces}
+                              onChange={(e) => handleRowChange(row.id, 'pieces', e.target.value)}
+                              placeholder="Number > 0"
+                            />
+                          </td>
+                          <td className="px-4 py-2 border-b">
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              className="w-full px-2 py-1 border rounded"
+                              value={row.weight}
+                              onChange={(e) => handleRowChange(row.id, 'weight', e.target.value)}
+                              placeholder="Weight > 0 kg"
+                            />
+                          </td>
+                          <td className="px-4 py-2 border-b">
+                            <input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              className="w-full px-2 py-1 border rounded"
+                              value={row.length}
+                              onChange={(e) => handleRowChange(row.id, 'length', e.target.value)}
+                              placeholder="Length > 0 cm"
+                            />
+                          </td>
+                          <td className="px-4 py-2 border-b">
+                            <input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              className="w-full px-2 py-1 border rounded"
+                              value={row.width}
+                              onChange={(e) => handleRowChange(row.id, 'width', e.target.value)}
+                              placeholder="Width > 0 cm"
+                            />
+                          </td>
+                          <td className="px-4 py-2 border-b">
+                            <input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              className="w-full px-2 py-1 border rounded"
+                              value={row.height}
+                              onChange={(e) => handleRowChange(row.id, 'height', e.target.value)}
+                              placeholder="Height > 0 cm"
+                            />
+                          </td>
+                          <td className="px-4 py-2 border-b">
                             <button
                               type="button"
-                              onClick={() => handleRemoveRow(row.id)}
-                              className="text-red-500 hover:text-red-700"
+                              onClick={() => toggleStackable(row.id)}
+                              className={`w-full px-3 py-1 rounded font-medium ${
+                                row.stackable === 'Yes' 
+                                  ? 'bg-green-100 text-green-800 border border-green-400'
+                                  : 'bg-red-100 text-red-800 border border-red-400'
+                              }`}
                             >
-                              Remove
+                              {row.stackable}
                             </button>
-                          )}
+                          </td>
+                          <td className="px-4 py-2 border-b">
+                            {rows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveRow(row.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td colSpan="7" className="px-4 py-2 border-b text-center">
+                          <button
+                            type="button"
+                            onClick={handleAddRow}
+                            className="text-blue-500 hover:text-blue-700 font-semibold"
+                          >
+                            + Add Row
+                          </button>
                         </td>
                       </tr>
-                    ))}
-                    <tr>
-                      <td colSpan="7" className="px-4 py-2 border-b text-center">
-                        <button
-                          type="button"
-                          onClick={handleAddRow}
-                          className="text-blue-500 hover:text-blue-700 font-semibold"
-                        >
-                          + Add Row
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                    </tbody>
+                  </table>
+                </div>
+              </>
             ) : (
               <div className="flex justify-center mb-6">
                 <div className="max-w-md w-1/2">
@@ -429,12 +477,18 @@ const SingleOfferPage = () => {
                   <input
                     type="number"
                     id="chargeableWeight"
-                    min="0"
+                    min="0.01"
                     step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-center text-lg font-semibold"
                     value={chargeableWeight}
-                    onChange={(e) => setChargeableWeight(e.target.value)}
-                    placeholder="Enter weight in kg"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Allow empty string for typing, but prevent 0 values
+                      if (value === '' || parseFloat(value) > 0) {
+                        setChargeableWeight(value);
+                      }
+                    }}
+                    placeholder="Enter weight > 0 kg"
                   />
                 </div>
               </div>

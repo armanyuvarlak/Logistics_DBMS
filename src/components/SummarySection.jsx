@@ -5,12 +5,12 @@ import { calculateShipping } from '../services/calculatorService'
 const SummarySection = ({ data }) => {
   const [zipCodeData, setZipCodeData] = useState([]);
 
-  // Function to get branch name from zip code
-  const getBranchFromZipCode = (zipCode) => {
+  // Function to get hub name from zip code
+  const getHubFromZipCode = (zipCode) => {
     if (!zipCode || !zipCodeData.length) return zipCode || 'N/A';
     
     const zipData = zipCodeData.find(zipData => zipData.zipCode === zipCode);
-    return zipData ? zipData.branchName : zipCode;
+    return zipData ? (zipData.hubName || zipData.branchName) : zipCode;
   };
 
   // Fetch zip code data on component mount
@@ -117,14 +117,14 @@ const SummarySection = ({ data }) => {
   const ldmAmount = isQuickMode ? "N/A" : (calculations?.summary.totalLdm || "0");
   const cbmAmount = isQuickMode ? "N/A" : (calculations?.summary.totalCbm || "0");
   
-  // Create lane pair display using branch names vertically stacked
-  const originBranch = getBranchFromZipCode(data?.originZip);
-  const destinationBranch = getBranchFromZipCode(data?.destinationZip);
+  // Create lane pair display using hub names vertically stacked
+  const originHub = getHubFromZipCode(data?.originZip);
+  const destinationHub = getHubFromZipCode(data?.destinationZip);
   const lanePairDisplay = (data?.originZip || data?.destinationZip) 
     ? (
         <div className="text-center">
-          <div className="font-medium">{originBranch}</div>
-          <div className="font-medium">{destinationBranch}</div>
+          <div className="font-medium">{originHub}</div>
+          <div className="font-medium">{destinationHub}</div>
         </div>
       )
     : (data?.lanePair || "");

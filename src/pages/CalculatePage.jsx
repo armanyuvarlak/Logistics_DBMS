@@ -12,6 +12,46 @@ const CalculatePage = () => {
   const navigate = useNavigate()
 
   const handleCalculate = () => {
+    // Validation for quick entry mode
+    if (entryMode === 'quick') {
+      if (!chargeableWeight || parseFloat(chargeableWeight) <= 0) {
+        alert('Please enter a chargeable weight greater than 0');
+        return;
+      }
+    } else {
+      // Validation for detailed entry mode
+      if (rows.length === 0) {
+        alert('Please add at least one row with item details');
+        return;
+      }
+      
+      const invalidRows = [];
+      
+      rows.forEach((row, index) => {
+        const pieces = parseInt(row.pieces, 10) || 0;
+        const length = parseFloat(row.length) || 0;
+        const width = parseFloat(row.width) || 0;
+        const height = parseFloat(row.height) || 0;
+        const weight = parseFloat(row.weight) || 0;
+        
+        const missingFields = [];
+        if (pieces <= 0) missingFields.push('Pieces');
+        if (weight <= 0) missingFields.push('Weight');
+        if (length <= 0) missingFields.push('Length');
+        if (width <= 0) missingFields.push('Width');
+        if (height <= 0) missingFields.push('Height');
+        
+        if (missingFields.length > 0) {
+          invalidRows.push(`Row ${index + 1}: ${missingFields.join(', ')} must be greater than 0`);
+        }
+      });
+      
+      if (invalidRows.length > 0) {
+        alert('Please fix the following issues:\n\n' + invalidRows.join('\n'));
+        return;
+      }
+    }
+
     // Calculate metrics for each row using the new calculation service
     const rowsWithCalculations = rows.map(row => {
       const metrics = calculateRowMetrics(row);
@@ -61,6 +101,13 @@ const CalculatePage = () => {
   }
 
   const handleUpdateRow = (id, field, value) => {
+    // For numeric fields, prevent zero values but allow empty strings for typing
+    if (['pieces', 'weight', 'length', 'width', 'height'].includes(field)) {
+      if (value !== '' && parseFloat(value) <= 0) {
+        return; // Don't update if value is zero or negative
+      }
+    }
+    
     setRows(rows.map(row => (row.id === id ? { ...row, [field]: value } : row)))
   }
 
@@ -155,12 +202,18 @@ const CalculatePage = () => {
                   <input
                     type="number"
                     id="chargeableWeight"
-                    min="0"
+                    min="0.01"
                     step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-center text-lg font-semibold"
                     value={chargeableWeight}
-                    onChange={(e) => setChargeableWeight(e.target.value)}
-                    placeholder="Enter value"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Allow empty string for typing, but prevent 0 values
+                      if (value === '' || parseFloat(value) > 0) {
+                        setChargeableWeight(value);
+                      }
+                    }}
+                    placeholder="Enter weight > 0"
                   />
                 </div>
               </div>
@@ -246,54 +299,55 @@ const TableRow = ({ row, onSave, onUpdate, onRemove, showRemoveButton }) => {
         <input
           type="number"
           min="1"
+          step="1"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.pieces}
           onChange={(e) => onUpdate(row.id, 'pieces', e.target.value)}
-          placeholder="Enter number"
+          placeholder="Number > 0"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
-          min="0"
+          min="0.01"
           step="0.01"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.weight}
           onChange={(e) => onUpdate(row.id, 'weight', e.target.value)}
-          placeholder="Weight in kg"
+          placeholder="Weight > 0 kg"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
-          min="0"
+          min="0.1"
           step="0.1"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.length}
           onChange={(e) => onUpdate(row.id, 'length', e.target.value)}
-          placeholder="Length in cm"
+          placeholder="Length > 0 cm"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
-          min="0"
+          min="0.1"
           step="0.1"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.width}
           onChange={(e) => onUpdate(row.id, 'width', e.target.value)}
-          placeholder="Width in cm"
+          placeholder="Width > 0 cm"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
         <input
           type="number"
-          min="0"
+          min="0.1"
           step="0.1"
           className="w-full px-2 py-1 border border-gray-300 rounded"
           value={row.height}
           onChange={(e) => onUpdate(row.id, 'height', e.target.value)}
-          placeholder="Height in cm"
+          placeholder="Height > 0 cm"
         />
       </td>
       <td className="px-4 py-2 border-b border-gray-200">
