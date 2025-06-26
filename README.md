@@ -232,16 +232,6 @@ npm run build
 firebase deploy
 ```
 
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
-4. **Push to the branch** (`git push origin feature/amazing-feature`)
-5. **Open a Pull Request**
-
 ### Development Guidelines
 - Follow React best practices and hooks
 - Use Tailwind CSS for styling
@@ -252,21 +242,3 @@ We welcome contributions! Please follow these steps:
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues or have questions:
-- **GitHub Issues**: [Create an issue](https://github.com/armanyuvarlak/Logistics_DBMS/issues)
-- **Email**: your-email@example.com
-- **Documentation**: Check our [Wiki](https://github.com/armanyuvarlak/Logistics_DBMS/wiki)
-
-## 🙏 Acknowledgments
-
-- Built with ❤️ using React and Firebase
-- Icons provided by [Heroicons](https://heroicons.com/)
-- Styling powered by [Tailwind CSS](https://tailwindcss.com/)
-- PDF generation by [jsPDF](https://github.com/parallax/jsPDF)
-
----
-
-**Made with ❤️ for the logistics industry** 
