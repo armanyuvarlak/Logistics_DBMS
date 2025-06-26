@@ -38,7 +38,8 @@ const OfferViewModal = ({ offer, onClose }) => {
         chargeableWeight: offer.chargeableWeight,
         ftlFee: offer.ftlFee || 0,
         breakdown: offer.breakdown,
-        routeString: offer.routeString || 'ROUTE'
+        routeString: offer.routeString || 'ROUTE',
+        packageDetails: offer.rows || [] // Include package details for table
       };
       
       const pdfResult = await generateOfferPDF(offer.optionNumber || 1, offerData);
@@ -96,7 +97,8 @@ const OfferViewModal = ({ offer, onClose }) => {
         chargeableWeight: offer.chargeableWeight,
         ftlFee: offer.ftlFee || 0,
         breakdown: offer.breakdown,
-        routeString: offer.routeString || 'ROUTE'
+        routeString: offer.routeString || 'ROUTE',
+        packageDetails: offer.rows || [] // Include package details for table
       };
       
       // Generate PDF with client name

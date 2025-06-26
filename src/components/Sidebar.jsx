@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { 
   DocumentTextIcon, 
@@ -6,6 +6,7 @@ import {
   CircleStackIcon,
   CalculatorIcon
 } from '@heroicons/react/24/outline'
+import { validatePassword, hasDBAccess, grantDBAccess } from '../utils/authUtils'
 
 const Sidebar = ({ isOpen }) => {
   const location = useLocation()
@@ -14,87 +15,10 @@ const Sidebar = ({ isOpen }) => {
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [password, setPassword] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // Check if database access is authorized
-  const hasDBAccess = () => {
-    const dbAccessTime = localStorage.getItem('dbAccessTime')
-    const dbAccessExpiry = localStorage.getItem('dbAccessExpiry')
-    
-    if (!dbAccessTime || !dbAccessExpiry) return false
-    
-    const now = new Date().getTime()
-    return now < parseInt(dbAccessExpiry)
-  }
-  
-  // Generate a weekly password based on the current week
-  const generateWeeklyPassword = () => {
-    const today = new Date()
-    
-    // Get the first day of the current week (Sunday)
-    const firstDayOfWeek = new Date(today)
-    const dayOfWeek = today.getDay()
-    firstDayOfWeek.setDate(today.getDate() - dayOfWeek)
-    
-    // Get year
-    const year = firstDayOfWeek.getFullYear()
-    
-    // Calculate week number (1-52)
-    const oneJan = new Date(year, 0, 1)
-    const numberOfDays = Math.floor((firstDayOfWeek - oneJan) / (24 * 60 * 60 * 1000))
-    const weekNumber = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7)
-    
-    // Reverse the year digits
-    const reverseYear = year.toString().split('').reverse().join('')
-    
-    // Generate the final password: TRdb + week number + reverse year
-    return `TRdb${weekNumber}${reverseYear}`
-  }
-  
-  // Handle database access
-  const handleDatabaseAccess = (e) => {
-    e.preventDefault()
-    
-    if (password === generateWeeklyPassword()) {
-      // Set access for one week
-      const now = new Date().getTime()
-      // 7 days in milliseconds
-      const expiryTime = now + (7 * 24 * 60 * 60 * 1000)
-      
-      localStorage.setItem('dbAccessTime', now.toString())
-      localStorage.setItem('dbAccessExpiry', expiryTime.toString())
-      
-      setShowPasswordModal(false)
-      setPassword("")
-      setErrorMessage("")
-      navigate('/database')
-    } else {
-      setErrorMessage("Invalid password. Please try again.")
-    }
-  }
-  
-  const getActivePage = (path) => {
-    if (path.includes('/offer/single-offer')) return 'offer preparation'
-    if (path.includes('/offer/review-offers')) return 'review offers'
-    if (path.includes('/database')) return 'database'
-    return 'offer preparation'
-  }
-
-
-  
-
-  
-  const activePage = getActivePage(location.pathname)
-
-  const handleDatabaseClick = (e) => {
-    e.preventDefault()
-    if (hasDBAccess()) {
-      navigate('/database')
-    } else {
-      setShowPasswordModal(true)
-    }
-  }
-
-  const navigationItems = [
+  // Memoize navigation items to prevent recreation
+  const navigationItems = useMemo(() => [
     {
       name: 'Offer Preparation',
       path: '/offer/single-offer',
@@ -117,86 +41,184 @@ const Sidebar = ({ isOpen }) => {
       icon: ArrowLeftOnRectangleIcon,
       requiresAuth: true
     }
-  ]
+  ], [])
+  
+  // Memoize active page calculation
+  const activePage = useMemo(() => {
+    const path = location.pathname
+    if (path.includes('/offer/single-offer')) return 'offer preparation'
+    if (path.includes('/offer/review-offers')) return 'review offers'
+    if (path.includes('/database')) return 'database'
+    return 'offer preparation'
+  }, [location.pathname])
+  
+  // Handle database access with improved security
+  const handleDatabaseAccess = useCallback(async (e) => {
+    e.preventDefault()
+    
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    
+    try {
+      const validation = validatePassword(password, 'database-access')
+      
+      if (validation.success) {
+        grantDBAccess()
+        setShowPasswordModal(false)
+        setPassword("")
+        setErrorMessage("")
+        navigate('/database')
+      } else {
+        setErrorMessage(validation.error)
+        if (!validation.rateLimited) {
+          setPassword("")
+        }
+      }
+    } catch (error) {
+      setErrorMessage("Authentication error. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [password, navigate, isSubmitting])
+
+  const handleDatabaseClick = useCallback((e) => {
+    e.preventDefault()
+    if (hasDBAccess()) {
+      navigate('/database')
+    } else {
+      setShowPasswordModal(true)
+      setPassword("")
+      setErrorMessage("")
+    }
+  }, [navigate])
+
+  const handleModalClose = useCallback(() => {
+    setShowPasswordModal(false)
+    setPassword("")
+    setErrorMessage("")
+  }, [])
+
+  // Memoize rendered navigation items
+  const renderedNavigationItems = useMemo(() => navigationItems.map((item) => {
+    const isActive = item.name.toLowerCase() === activePage
+    const Icon = item.icon
+    
+    if (item.name === 'Database') {
+      return (
+        <button
+          key={item.name}
+          onClick={handleDatabaseClick}
+          className={`w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+            isActive
+              ? 'bg-accent text-white shadow-md'
+              : 'text-neutral-700 hover:bg-neutral-100 hover:text-primary'
+          }`}
+        >
+          <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+          {item.name}
+        </button>
+      )
+    }
+    
+    if (item.name === 'Logout') {
+      return (
+        <button
+          key={item.name}
+          onClick={() => navigate('/logout')}
+          className="w-full text-left flex items-center px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-danger-50 hover:text-danger rounded-lg transition-all duration-200"
+        >
+          <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+          {item.name}
+        </button>
+      )
+    }
+    
+    return (
+      <Link
+        key={item.name}
+        to={item.path}
+        className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+          isActive
+            ? 'bg-accent text-white shadow-md'
+            : 'text-neutral-700 hover:bg-neutral-100 hover:text-primary'
+        }`}
+      >
+        <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+        {item.name}
+      </Link>
+    )
+  }), [navigationItems, activePage, handleDatabaseClick, navigate])
 
   return (
     <>
-      <aside 
-        className={`sidebar-container bg-slate-800 text-white w-64 h-screen fixed transform transition-transform duration-200 ease-in-out z-20 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } flex flex-col overflow-hidden`}
-      >
-        <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
-          <div className="p-4 pt-24 pb-16">
-            <nav className="space-y-4 mb-16">
-              {navigationItems.map((item) => (
-                <div key={item.name} className="flex flex-col mb-5">
-                  <div 
-                    className={`flex items-center justify-between px-4 py-3 rounded-lg transition-colors duration-200 cursor-pointer ${
-                      activePage === item.name.toLowerCase()
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-slate-700 hover:text-white'
-                    }`}
-                  >
-                    {item.name === 'Database' ? (
-                      <div 
-                        className="flex items-center space-x-3 w-full"
-                        onClick={handleDatabaseClick}
-                      >
-                        <item.icon className="w-6 h-6" />
-                        <span className="font-medium text-lg">{item.name}</span>
-                      </div>
-                    ) : (
-                      <Link 
-                        to={item.path}
-                        className="flex items-center space-x-3 w-full"
-                      >
-                        <item.icon className="w-6 h-6" />
-                        <span className="font-medium text-lg">{item.name}</span>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </nav>
+      <div className={`sidebar-container fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-xl border-r border-neutral-200 transform transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="flex flex-col h-full">
+          {/* Logo Section */}
+          <div className="flex items-center justify-center h-16 px-6 bg-primary border-b border-primary-700">
+            <h1 className="text-xl font-semibold text-white tracking-wide">
+              Logistics System
+            </h1>
+          </div>
+          
+          {/* Navigation Links */}
+          <nav className="flex-1 mt-6 overflow-y-auto">
+            <div className="px-3">
+              <div className="space-y-1">
+                {renderedNavigationItems}
+              </div>
+            </div>
+          </nav>
+          
+          {/* Footer */}
+          <div className="flex-shrink-0 border-t border-neutral-200 bg-neutral-50 p-4">
+            <div className="text-xs text-neutral-500 text-center font-medium">
+              © 2025 Logistics System
+            </div>
           </div>
         </div>
-      </aside>
-      
-      {/* Password Modal */}
+      </div>
+
+      {/* Database Access Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 w-80 max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Database Access</h3>
-            <p className="text-sm text-gray-600 mb-4">Please enter the access password to continue.</p>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-80 max-w-md border border-neutral-200">
+            <h3 className="text-lg font-semibold text-primary mb-3">Database Access</h3>
+            <p className="text-sm text-neutral-600 mb-4">Please enter the access code to continue.</p>
             
             <form onSubmit={handleDatabaseAccess}>
               <div className="mb-4">
                 <input
                   type="password"
-                  placeholder="Enter password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter access code"
+                  className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all duration-200"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  autoComplete="off"
+                  autoFocus
                 />
                 {errorMessage && (
-                  <p className="text-red-500 text-xs mt-1">{errorMessage}</p>
+                  <p className="text-danger text-xs mt-1" role="alert">{errorMessage}</p>
                 )}
               </div>
               
               <div className="flex justify-end space-x-2">
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                  onClick={() => setShowPasswordModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors"
+                  onClick={handleModalClose}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                  className="px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-700 transition-colors disabled:opacity-50 shadow-md"
+                  disabled={isSubmitting}
                 >
-                  Submit
+                  {isSubmitting ? 'Verifying...' : 'Submit'}
                 </button>
               </div>
             </form>

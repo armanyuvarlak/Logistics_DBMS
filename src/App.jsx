@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -36,35 +36,37 @@ const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const { isAuthenticated } = useAuth()
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen)
-  }
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => !prev)
+  }, [])
 
   // Close sidebar when clicking outside
   useEffect(() => {
-    const handleBodyClick = (event) => {
-      // Skip if sidebar is already closed or if we're on a small screen where the overlay handles this
-      if (!isSidebarOpen || window.innerWidth < 1024) {
-        return
+    if (!isSidebarOpen) return
+
+    const handleClickOutside = (event) => {
+      // Check if the clicked element is the menu button or any of its children
+      if (event.target.closest('button.menu-button')) {
+        return // Don't close if clicking the menu button
       }
-      
-      // Get sidebar element
-      const sidebar = document.querySelector('.sidebar-container')
-      
-      // Check if the sidebar exists and the click was outside both the sidebar and the menu button
-      if (sidebar && 
-          !sidebar.contains(event.target) && 
-          !event.target.closest('.menu-button')) {
-        setIsSidebarOpen(false)
+
+      // Check if the clicked element is inside the sidebar
+      if (event.target.closest('.sidebar-container')) {
+        return // Don't close if clicking inside the sidebar
       }
+
+      // Close the sidebar if clicking anywhere else
+      setIsSidebarOpen(false)
     }
-    
-    // Add event listener
-    document.addEventListener('click', handleBodyClick)
-    
-    // Cleanup event listener
+
+    // Add event listener after a small delay to prevent immediate closing
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside, true)
+    }, 50)
+
     return () => {
-      document.removeEventListener('click', handleBodyClick)
+      clearTimeout(timer)
+      document.removeEventListener('click', handleClickOutside, true)
     }
   }, [isSidebarOpen])
 
@@ -73,18 +75,18 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div className="App flex h-screen bg-gray-50 relative">
+    <div className="App flex h-screen bg-neutral-50 relative">
       {/* Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden" 
-          onClick={toggleSidebar}
+          className="fixed inset-0 bg-black bg-opacity-40 z-20" 
+          onClick={() => setIsSidebarOpen(false)}
         />
       )}
       <Sidebar isOpen={isSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <Header toggleSidebar={toggleSidebar} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-neutral-100">
           {children}
         </main>
       </div>

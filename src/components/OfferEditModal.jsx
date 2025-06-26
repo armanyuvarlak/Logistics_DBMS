@@ -1,64 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { validatePassword } from '../utils/authUtils';
 
 const OfferEditModal = ({ offer, onSave, onClose }) => {
   const [editedOffer, setEditedOffer] = useState({});
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate weekly password same as database access
-  const generateWeeklyPassword = () => {
-    const today = new Date()
-    
-    // Get the start of the week (Sunday)
-    const firstDayOfWeek = new Date(today)
-    const dayOfWeek = today.getDay()
-    firstDayOfWeek.setDate(today.getDate() - dayOfWeek)
-    
-    // Get year
-    const year = firstDayOfWeek.getFullYear()
-    
-    // Calculate week number (1-52)
-    const oneJan = new Date(year, 0, 1)
-    const numberOfDays = Math.floor((firstDayOfWeek - oneJan) / (24 * 60 * 60 * 1000))
-    const weekNumber = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7)
-    
-    // Reverse the year digits
-    const reverseYear = year.toString().split('').reverse().join('')
-    
-    // Generate the final password: TRdb + week number + reverse year
-    return `TRdb${weekNumber}${reverseYear}`
-  };
+  // Memoize the initial offer data to prevent unnecessary re-renders
+  const initialOfferData = useMemo(() => ({
+    status: offer?.status || 'Pending'
+  }), [offer?.status]);
 
   useEffect(() => {
     if (offer) {
-      setEditedOffer({
-        status: offer.status || 'Pending'
-      });
+      setEditedOffer(initialOfferData);
     }
-  }, [offer]);
+  }, [offer, initialOfferData]);
 
-  const handlePasswordSubmit = (e) => {
+  // Use useCallback to prevent function recreation on every render
+  const handlePasswordSubmit = useCallback(async (e) => {
     e.preventDefault();
-    if (password === generateWeeklyPassword()) {
-      setIsAuthenticated(true);
-      setPasswordError('');
-    } else {
-      setPasswordError('Incorrect password. Please try again.');
-      setPassword('');
+    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    try {
+      const validation = validatePassword(password, 'offer-edit');
+      
+      if (validation.success) {
+        setIsAuthenticated(true);
+        setPasswordError('');
+      } else {
+        setPasswordError(validation.error);
+        if (!validation.rateLimited) {
+          setPassword('');
+        }
+      }
+    } catch (error) {
+      setPasswordError('Authentication error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [password, isSubmitting]);
 
-  const handleSave = () => {
-    onSave(offer.id, editedOffer);
-  };
+  const handleSave = useCallback(() => {
+    if (offer?.id) {
+      onSave(offer.id, editedOffer);
+    }
+  }, [offer?.id, editedOffer, onSave]);
 
-  const handleChange = (field, value) => {
+  const handleChange = useCallback((field, value) => {
     setEditedOffer(prev => ({
       ...prev,
       [field]: value
     }));
-  };
+  }, []);
+
+  // Memoize the status options to prevent recreation
+  const statusOptions = useMemo(() => [
+    { value: 'Pending', label: 'Pending' },
+    { value: 'Approved', label: 'Approved' },
+    { value: 'Rejected', label: 'Rejected' }
+  ], []);
 
   if (!offer) return null;
 
@@ -70,11 +75,12 @@ const OfferEditModal = ({ offer, onSave, onClose }) => {
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-gray-900">
-                Password Required
+                Authentication Required
               </h3>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                type="button"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -83,24 +89,26 @@ const OfferEditModal = ({ offer, onSave, onClose }) => {
             </div>
             
             <p className="text-gray-600 mb-4">
-              Please enter the database password to edit this offer.
+              Please enter the authentication code to edit this offer.
             </p>
             
             <form onSubmit={handlePasswordSubmit}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
+                  Authentication Code
                 </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter password"
+                  placeholder="Enter authentication code"
                   required
+                  disabled={isSubmitting}
+                  autoComplete="off"
                 />
                 {passwordError && (
-                  <p className="text-red-500 text-sm mt-1">{passwordError}</p>
+                  <p className="text-red-500 text-sm mt-1" role="alert">{passwordError}</p>
                 )}
               </div>
               
@@ -109,14 +117,16 @@ const OfferEditModal = ({ offer, onSave, onClose }) => {
                   type="button"
                   onClick={onClose}
                   className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  Authenticate
+                  {isSubmitting ? 'Verifying...' : 'Authenticate'}
                 </button>
               </div>
             </form>
@@ -141,7 +151,8 @@ const OfferEditModal = ({ offer, onSave, onClose }) => {
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            type="button"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -168,13 +179,15 @@ const OfferEditModal = ({ offer, onSave, onClose }) => {
                 Status
               </label>
               <select
-                value={editedOffer.status}
+                value={editedOffer.status || ''}
                 onChange={(e) => handleChange('status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
+                {statusOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -224,12 +237,14 @@ const OfferEditModal = ({ offer, onSave, onClose }) => {
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            type="button"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            type="button"
           >
             Save Changes
           </button>
