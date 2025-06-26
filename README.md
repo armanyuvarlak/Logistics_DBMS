@@ -6,19 +6,6 @@
 [![Version](https://img.shields.io/badge/Version-1.0.0-blue)](#)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](#)
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
-- [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Application Structure](#application-structure)
-- [Firebase Configuration](#firebase-configuration)
-- [Contributing](#contributing)
-- [License](#license)
-
 ## 🎯 Overview
 
 The **Logistics Calculator Web Application** is a modern, responsive web platform designed for logistics professionals to calculate shipping costs, manage offers, and maintain comprehensive databases of logistics operations. The application provides real-time calculations, user authentication and data persistence.
