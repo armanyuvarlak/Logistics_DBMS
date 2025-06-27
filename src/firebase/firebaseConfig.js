@@ -6,16 +6,15 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Firebase configuration using environment variables for security
 const firebaseConfig = {
-  apiKey: "AIzaSyBJ1Vgx1koY0pnYb2gn7oy6UG663MJ8RiI",
-  authDomain: "logistics-592a9.firebaseapp.com",
-  projectId: "logistics-592a9",
-  storageBucket: "logistics-592a9.appspot.com",
-  messagingSenderId: "417103738201",
-  appId: "1:417103738201:web:774ec71926e11264514848",
-  measurementId: "G-XPZP86Q7EW"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyBJ1Vgx1koY0pnYb2gn7oy6UG663MJ8RiI",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "logistics-592a9.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "logistics-592a9",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "logistics-592a9.appspot.com",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "417103738201",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:417103738201:web:774ec71926e11264514848",
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-XPZP86Q7EW"
 };
 
 // Initialize Firebase - only once
