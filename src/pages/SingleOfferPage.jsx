@@ -299,8 +299,8 @@ const getHubFromZipCode = async (zipCode, zipCodeData) => {
                 </div>
               )}
 
-              <div className="flex flex-wrap -mx-3">
-                <div className="w-full md:w-1/2 px-3 mb-6 md:mb-0">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
                   <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="origin-zip">
                     Origin Zip Code
                   </label>
@@ -313,7 +313,7 @@ const getHubFromZipCode = async (zipCode, zipCodeData) => {
                     onChange={(e) => setOriginZip(e.target.value.toUpperCase())}
                   />
                 </div>
-                <div className="w-full md:w-1/2 px-3">
+                <div>
                   <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="destination-zip">
                     Destination Zip Code
                   </label>
@@ -470,7 +470,7 @@ const getHubFromZipCode = async (zipCode, zipCodeData) => {
               </>
             ) : (
               <div className="flex justify-center mb-6">
-                <div className="max-w-md w-1/2">
+                <div className="max-w-md w-96">
                   <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="chargeableWeight">
                     Chargeable Weight (kg)
                   </label>

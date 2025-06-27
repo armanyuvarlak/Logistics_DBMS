@@ -259,7 +259,8 @@ const ResultsSection = () => {
         chargeableWeight: getChargeableWeightForRatio(volumeRatio),
         ftlFee: ftlFee || 0,
         breakdown: pricing.breakdown,
-        routeString: getRouteString()
+        routeString: getRouteString(),
+        packageDetails: rows || [] // Include package details for table
       };
       
       // Generate PDF
@@ -294,7 +295,7 @@ const ResultsSection = () => {
     setCurrentPdfOption(null);
   }
 
-  // Download PDF
+  // Download PDF and automatically save as offer
   const downloadPdf = async (clientName) => {
     console.log('Downloading PDF for client:', clientName);
     try {
@@ -304,6 +305,11 @@ const ResultsSection = () => {
       const term = optionNumber === 1 ? option1Term : option2Term;
       const selectedTerm = optionNumber === 1 ? option1SelectedTerm : option2SelectedTerm;
       const volumeRatio = optionNumber === 1 ? option1VolumeRatio : option2VolumeRatio;
+      
+      if (!pricing || !pricing.success) {
+        alert('No pricing data available for this option');
+        return;
+      }
       
       // Prepare offer data for PDF
       const offerData = {
@@ -317,18 +323,69 @@ const ResultsSection = () => {
         chargeableWeight: getChargeableWeightForRatio(volumeRatio),
         ftlFee: ftlFee || 0,
         breakdown: pricing.breakdown,
-        routeString: getRouteString()
+        routeString: getRouteString(),
+        packageDetails: rows || [] // Include package details for table
       };
       
       // Generate PDF with client name
       const pdfResult = await generateOfferPDF(optionNumber, offerData, clientName);
       
-      if (pdfResult.success && pdfResult.downloadPDF) {
-        pdfResult.downloadPDF();
-        // Clean up the new PDF blob
-        if (pdfResult.cleanup) {
-          setTimeout(() => pdfResult.cleanup(), 1000); // Clean up after download
+      if (pdfResult.success) {
+        // First, save the offer to get the ID
+        const saveOfferData = {
+          optionNumber,
+          calculationType,
+          origin: originZip,
+          destination: destinationZip,
+          originHub: getHubFromZipCode(originZip),
+          destinationHub: getHubFromZipCode(destinationZip),
+          serviceType: term,
+          term: selectedTerm,
+          volumeRatio,
+          chargeableWeight: getChargeableWeightForRatio(volumeRatio),
+          totalCost: pricing.breakdown.totalCost,
+          ftlFee,
+          breakdown: pricing.breakdown,
+          rows: rows || [],
+          routeString: getRouteString(),
+          clientName: clientName // Add client name to offer data
+        };
+
+        // Save the offer to get the ID
+        const saveResult = saveOffer(saveOfferData);
+        
+        if (saveResult.success) {
+          // Create custom filename: ClientName-OfferID
+          const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9]/g, '');
+          const customFilename = `${sanitizedClientName}-${saveResult.offer.id}`;
+          
+          // Download PDF with custom filename
+          if (pdfResult.downloadPDF) {
+            pdfResult.downloadPDF(customFilename);
+            alert(`PDF downloaded as "${customFilename}.pdf"!\n\nOffer ${saveResult.offer.id} has been added to Review Offers for client: ${clientName}`);
+          } else {
+            alert(`Offer ${saveResult.offer.id} saved successfully, but PDF download failed.`);
+          }
+          
+          // Clean up the PDF blob
+          if (pdfResult.cleanup) {
+            setTimeout(() => pdfResult.cleanup(), 1000);
+          }
+        } else {
+          // If save fails, still allow PDF download with original name
+          if (pdfResult.downloadPDF) {
+            pdfResult.downloadPDF();
+            alert(`PDF downloaded successfully!\n\nNote: Could not automatically save to Review Offers: ${saveResult.error}`);
+          }
+          
+          // Clean up the PDF blob
+          if (pdfResult.cleanup) {
+            setTimeout(() => pdfResult.cleanup(), 1000);
+          }
         }
+        
+        // Close the PDF preview
+        closePdfPreview();
       } else {
         alert('Error generating PDF for download');
       }
@@ -433,9 +490,9 @@ const ResultsSection = () => {
           </div>
         </div>
         <div className="card-body">
-          <div className="flex flex-wrap gap-[30px] justify-between w-full max-w-[1400px]">
+          <div className="grid grid-cols-2 gap-8 w-full max-w-[1400px]">
             {/* First Result Table */}
-            <div className="flex-1 basis-[45%] max-w-full p-6 bg-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
+            <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4 text-blue-800 border-b-2 border-blue-300 pb-2 bg-blue-100 -mx-6 -mt-6 mb-6 px-6 pt-4 rounded-t-lg">
                 <span className="inline-flex items-center">
                   <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-2">1</span>
@@ -545,7 +602,7 @@ const ResultsSection = () => {
             </div>
 
             {/* Second Result Table */}
-            <div className="flex-1 basis-[45%] max-w-full p-6 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
+            <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4 text-green-800 border-b-2 border-green-300 pb-2 bg-green-100 -mx-6 -mt-6 mb-6 px-6 pt-4 rounded-t-lg">
                 <span className="inline-flex items-center">
                   <span className="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-2">2</span>

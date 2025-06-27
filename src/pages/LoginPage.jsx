@@ -143,7 +143,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-800 to-slate-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-800 to-slate-900 p-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-2xl">
         <div>
           {/* Logistics Icon - Container and Transportation */}
@@ -204,7 +204,7 @@ const LoginPage = () => {
                   name="name"
                   type="text"
                   required={isRegistering}
-                  className="appearance-none rounded-t-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  className="appearance-none rounded-t-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 text-sm"
                   placeholder="Full Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -219,7 +219,7 @@ const LoginPage = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className={`appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm ${
+                className={`appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 text-sm ${
                   isRegistering ? '' : 'rounded-t-md'
                 }`}
                 placeholder="Email address"
@@ -235,7 +235,7 @@ const LoginPage = () => {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="appearance-none rounded-b-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-b-md relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 text-sm"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

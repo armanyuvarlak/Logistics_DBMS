@@ -378,7 +378,7 @@ const ClientTab = ({ offers, onDeleteOffer, onViewOffer, onEditOffer }) => {
       {/* Filter Controls */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
         <h3 className="text-md font-medium mb-3">Filter Options</h3>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-6">
           {/* Client Dropdown */}
           {uniqueClients.length > 0 && (
             <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ const ApprovalTab = ({ offers, onDeleteOffer, onViewOffer, onEditOffer }) => {
       {/* Filter Controls */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
         <h3 className="text-md font-medium mb-3">Filter by Status</h3>
-        <div className="flex flex-wrap items-center gap-6">
+        <div className="flex items-center gap-8">
           {/* Approved Checkbox */}
           {approvedCount > 0 && (
             <div className="flex items-center gap-2">
@@ -631,7 +631,7 @@ const ServiceTypeTab = ({ offers, onDeleteOffer, onViewOffer, onEditOffer }) => 
       {/* Filter Controls */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
         <h3 className="text-md font-medium mb-3">Filter Options</h3>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-6">
           {/* Service Type Dropdown */}
           {existingServiceTypes.length > 0 && (
             <div className="flex items-center gap-2">
@@ -731,7 +731,7 @@ const OriginTab = ({ offers, onDeleteOffer, onViewOffer, onEditOffer }) => {
       {/* Filter Controls */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
         <h3 className="text-md font-medium mb-3">Filter Options</h3>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-6">
           {/* Origin Dropdown */}
           {uniqueOrigins.length > 0 && (
             <div className="flex items-center gap-2">
@@ -824,7 +824,7 @@ const DestinationTab = ({ offers, onDeleteOffer, onViewOffer, onEditOffer }) => 
       {/* Filter Controls */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
         <h3 className="text-md font-medium mb-3">Filter Options</h3>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-6">
           {/* Destination Dropdown */}
           {uniqueDestinations.length > 0 && (
             <div className="flex items-center gap-2">
@@ -919,7 +919,7 @@ const LanePairTab = ({ offers, onDeleteOffer, onViewOffer, onEditOffer }) => {
       {/* Filter Controls */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
         <h3 className="text-md font-medium mb-3">Filter Options</h3>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-6">
           {/* Lane Pair Dropdown */}
           {uniqueLanePairs.length > 0 && (
             <div className="flex items-center gap-2">
