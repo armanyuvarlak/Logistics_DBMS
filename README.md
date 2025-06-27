@@ -16,7 +16,7 @@
 - [Usage](#usage)
 - [Application Structure](#application-structure)
 - [Firebase Configuration](#firebase-configuration)
-- [Contributing](#contributing)
+- [Security](#security)
 - [License](#license)
 
 ## 🎯 Overview
@@ -182,21 +182,25 @@ src/
 ## 🔧 Firebase Configuration
 
 ### Environment Setup
-Create a `firebaseConfig.js` file in the `src/firebase/` directory:
+1. **Create Environment Variables File**
+   Copy `.env.example` to `.env` and update with your Firebase credentials:
+   ```bash
+   cp .env.example .env
+   ```
 
-```javascript
-import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+2. **Configure Firebase Credentials**
+   Update your `.env` file with your Firebase project settings:
+   ```bash
+   REACT_APP_FIREBASE_API_KEY=your-api-key
+   REACT_APP_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   REACT_APP_FIREBASE_PROJECT_ID=your-project-id
+   REACT_APP_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+   REACT_APP_FIREBASE_APP_ID=your-app-id
+   ```
 
-const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-auth-domain",
-  projectId: "your-project-id",
-  storageBucket: "your-storage-bucket",
-  messagingSenderId: "your-messaging-sender-id",
-  appId: "your-app-id"
-}
+3. **Firebase Security Rules**
+   The application includes enhanced Firestore security rules with authentication requirements and data validation.
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
@@ -232,33 +236,41 @@ npm run build
 firebase deploy
 ```
 
-## 🤝 Contributing
+## 🔐 Security
 
-We welcome contributions! Please follow these steps:
+This application implements multiple security layers:
 
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
-4. **Push to the branch** (`git push origin feature/amazing-feature`)
-5. **Open a Pull Request**
+### **Active Security Features**
+- ✅ **Environment Variables**: Firebase credentials stored securely
+- ✅ **HTTPS Enforcement**: All traffic encrypted in production  
+- ✅ **Security Headers**: CSP, XSS protection, and frame options configured
+- ✅ **Rate Limiting**: Protection against brute force attacks
+- ✅ **Input Validation**: Comprehensive sanitization and validation
+- ✅ **Firebase Security Rules**: Authentication required for all data access
+- ✅ **Session Management**: Secure token-based authentication
 
-### Development Guidelines
-- Follow React best practices and hooks
-- Use Tailwind CSS for styling
-- Maintain TypeScript-like prop documentation
-- Write meaningful commit messages
-- Test thoroughly before submitting
+### **Security Configuration**
+The application uses multiple security mechanisms:
+- **Content Security Policy** prevents XSS attacks
+- **Rate limiting** on authentication attempts (5 per 15 minutes)
+- **Input sanitization** removes potentially harmful content
+- **Firestore rules** require authentication for all operations
+- **Environment variables** protect sensitive configuration
+
+### **Production Deployment**
+For secure production deployment:
+1. Ensure HTTPS is enabled (`npm start` uses HTTPS by default)
+2. Configure environment variables for Firebase credentials
+3. Deploy Firestore security rules with the application
+4. Enable Firebase security features in the console
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 📋 Application Notes
 
-If you encounter any issues or have questions:
-- **GitHub Issues**: [Create an issue](https://github.com/armanyuvarlak/Logistics_DBMS/issues)
-- **Email**: your-email@example.com
-- **Documentation**: Check our [Wiki](https://github.com/armanyuvarlak/Logistics_DBMS/wiki)
+**Personal logistics management system** designed for desktop use with comprehensive security features and real-time calculations.
 
 ## 🙏 Acknowledgments
 

@@ -2,29 +2,58 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper functions for validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isValidData(data) {
+      return data.keys().hasAll(['createdAt']) &&
+             data.createdAt is timestamp;
+    }
+    
+    function rateLimitExceeded() {
+      // Simple rate limiting - max 100 writes per hour per user
+      return false; // Placeholder - would need cloud functions for real rate limiting
+    }
+    
     // Allow authenticated users to read and write only their own data in userData
     match /userData/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isAuthenticated() && 
+                           request.auth.uid == userId &&
+                           !rateLimitExceeded();
     }
     
-    // Allow authenticated users to access calculations collection
+    // Allow authenticated users to access calculations collection with validation
     match /calculations/{document} {
-      allow read, write: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                    !rateLimitExceeded() &&
+                    (request.resource == null || isValidData(request.resource.data));
     }
     
-    // Allow authenticated users to access zipCodes collection
+    // Allow authenticated users to access zipCodes collection (read-mostly)
     match /zipCodes/{document} {
-      allow read, write: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                    !rateLimitExceeded() &&
+                    (request.resource == null || isValidData(request.resource.data));
     }
     
-    // Allow authenticated users to access rates collection
+    // Allow authenticated users to access rates collection (read-mostly)
     match /rates/{document} {
-      allow read, write: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                    !rateLimitExceeded() &&
+                    (request.resource == null || isValidData(request.resource.data));
     }
     
-    // Allow authenticated users to access lanePairs collection
+    // Allow authenticated users to access lanePairs collection with validation
     match /lanePairs/{document} {
-      allow read, write: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                    !rateLimitExceeded() &&
+                    (request.resource == null || isValidData(request.resource.data));
     }
     
     // Default: deny all access to other collections
