@@ -40,7 +40,6 @@ The **Logistics Calculator Web Application** is a modern, responsive web platfor
 - **Modern responsive design** built with Tailwind CSS
 - **Mobile-first approach** for all device compatibility
 - **Intuitive navigation** with collapsible sidebar
-- **Dark/light theme** support (coming soon)
 
 ### 📈 Review & Analytics
 - **Offer history** and review system
@@ -218,13 +217,6 @@ npm run build
 # Deploy using Firebase CLI
 firebase deploy
 ```
-
-### Development Guidelines
-- Follow React best practices and hooks
-- Use Tailwind CSS for styling
-- Maintain TypeScript-like prop documentation
-- Write meaningful commit messages
-- Test thoroughly before submitting
 
 ## 📝 License
 
