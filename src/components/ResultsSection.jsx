@@ -490,9 +490,9 @@ const ResultsSection = () => {
           </div>
         </div>
         <div className="card-body">
-          <div className="flex flex-wrap gap-[30px] justify-between w-full max-w-[1400px]">
+          <div className="grid grid-cols-2 gap-8 w-full max-w-[1400px]">
             {/* First Result Table */}
-            <div className="flex-1 basis-[45%] max-w-full p-6 bg-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
+            <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4 text-blue-800 border-b-2 border-blue-300 pb-2 bg-blue-100 -mx-6 -mt-6 mb-6 px-6 pt-4 rounded-t-lg">
                 <span className="inline-flex items-center">
                   <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-2">1</span>
@@ -602,7 +602,7 @@ const ResultsSection = () => {
             </div>
 
             {/* Second Result Table */}
-            <div className="flex-1 basis-[45%] max-w-full p-6 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
+            <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4 text-green-800 border-b-2 border-green-300 pb-2 bg-green-100 -mx-6 -mt-6 mb-6 px-6 pt-4 rounded-t-lg">
                 <span className="inline-flex items-center">
                   <span className="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-2">2</span>

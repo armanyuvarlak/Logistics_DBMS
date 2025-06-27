@@ -177,7 +177,7 @@ const OfferViewModal = ({ offer, onClose }) => {
           
           {/* Details Section */}
           <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-2 gap-8">
             
             {/* Basic Information */}
             <div className="bg-gray-50 p-4 rounded-lg">

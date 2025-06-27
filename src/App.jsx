@@ -75,18 +75,11 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div className="App flex h-screen bg-neutral-50 relative">
-      {/* Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-40 z-20" 
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+    <div className="App flex h-screen bg-neutral-50">
       <Sidebar isOpen={isSidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Header toggleSidebar={toggleSidebar} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-neutral-100">
+        <main className="flex-1 overflow-x-auto overflow-y-auto bg-neutral-100">
           {children}
         </main>
       </div>

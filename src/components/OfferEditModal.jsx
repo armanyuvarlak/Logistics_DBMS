@@ -195,7 +195,7 @@ const OfferEditModal = ({ offer, onSave, onClose }) => {
           {/* Read-only Information */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h4 className="text-lg font-medium text-gray-900 mb-4">Read-Only Information</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-6 text-sm">
               <div>
                 <span className="font-medium text-gray-600">Service Type:</span>
                 <span className="ml-2 text-gray-900">{offer.serviceType}</span>

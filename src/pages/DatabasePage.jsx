@@ -348,7 +348,7 @@ const DatabasePage = () => {
       {error && <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{error}</div>}
       
       <form onSubmit={handleZipCodeSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="zipCode">
               Zip Code * <span className="text-gray-500 text-xs">(2 letters + 2 numbers, e.g., TR33)</span>
@@ -418,7 +418,7 @@ const DatabasePage = () => {
         </div>
 
         {!isHub && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="zone">
                 Zone * <span className="text-gray-500 text-xs">(distance from hub)</span>
@@ -493,7 +493,7 @@ const DatabasePage = () => {
         )}
         
         <form onSubmit={handleLanePairSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="originHub">
                 Origin Hub *

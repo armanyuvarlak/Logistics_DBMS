@@ -151,7 +151,7 @@ const Sidebar = ({ isOpen }) => {
 
   return (
     <>
-      <div className={`sidebar-container fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-xl border-r border-neutral-200 transform transition-transform duration-300 ease-in-out ${
+      <div className={`sidebar-container fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-xl border-r border-neutral-200 transition-all duration-300 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">

@@ -77,7 +77,7 @@ module.exports = {
         DEFAULT: '8px',
       },
       spacing: {
-        'standard': '20px',
+        'standard': '24px',
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
