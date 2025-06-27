@@ -6,8 +6,7 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
-// Your web app's Firebase configuration
-// Using environment variables for security
+// Firebase configuration using environment variables for security
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyBJ1Vgx1koY0pnYb2gn7oy6UG663MJ8RiI",
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "logistics-592a9.firebaseapp.com",

@@ -1,215 +1,126 @@
-# 🚚 Logistics Calculator Web Application
+# Logistics Calculator - Personal Prototype
 
-> **A comprehensive web-based logistics calculation and management system built with React and Firebase**
+A desktop-optimized logistics pricing calculator built with React and Firebase. This is a personal prototype project for calculating shipping costs and managing logistics offers.
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live-green)](https://your-app-url.web.app)
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue)](#)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](#)
+## 🚀 Features
 
-## 📋 Table of Contents
+- **Freight Calculation**: Calculate costs for LTL, FTL, Air, and Ocean freight
+- **Zone-based Pricing**: Comprehensive zone mapping system
+- **Offer Management**: Save, edit, and manage pricing offers
+- **PDF Generation**: Generate professional quotes
+- **Authentication**: Simple weekly password system with rate limiting
+- **Desktop-First Design**: Optimized for desktop use with Tailwind CSS
 
-- [Overview](#overview)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
-- [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Application Structure](#application-structure)
-- [Firebase Configuration](#firebase-configuration)
-- [Security](#security)
-- [License](#license)
+## 🛠️ Tech Stack
 
-## 🎯 Overview
+- **Frontend**: React 18, Tailwind CSS
+- **Backend**: Firebase (Firestore, Authentication, Functions)
+- **PDF Generation**: jsPDF with custom templates
+- **State Management**: React Context + Local Storage
+- **Build Tool**: Create React App
 
-The **Logistics Calculator Web Application** is a modern, responsive web platform designed for logistics professionals to calculate shipping costs, manage offers, and maintain comprehensive databases of logistics operations. The application provides real-time calculations, user authentication and data persistence.
+## 📦 Installation
 
-## ✨ Features
+```bash
+# Clone the repository
+git clone https://github.com/armanyuvarlak/Logistics_DBMS.git
+cd logistic
 
-### 🔐 Authentication & Security
-- **Firebase Authentication** with email/password and Google Sign-In
-- **Email verification** required for account activation
-- **Secure user sessions** with automatic refresh
-- **Protected routes** for authenticated users only
+# Install dependencies
+npm install
 
-### 📊 Logistics Calculations
-- **Single Offer Calculator** with comprehensive cost breakdown
-- **Multi-parameter pricing** including weight, dimensions, distance
-- **Real-time calculations** with instant updates
-- **Custom pricing rules** and rate management
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your Firebase credentials
 
-### 📁 Data Management
-- **Firestore Database** integration for cloud storage
-- **LocalStorage backup** for offline functionality
-- **User-specific data** isolation and security
-- **Data export/import** capabilities
+# Start development server
+npm start
+```
 
-### 📄 Report Generation
-- **Professional PDF reports** with company branding
-- **Customizable templates** for different report types
-- **Automatic calculations** and summary generation
-- **Download and share** functionality
+## 🔧 Configuration
 
-### 🎨 User Interface
-- **Modern responsive design** built with Tailwind CSS
-- **Desktop-optimized layout** for logistics professionals
-- **Intuitive navigation** with collapsible sidebar
-- **Dark/light theme** support (coming soon)
+### Environment Variables
+Copy `.env.example` to `.env` and configure your Firebase credentials:
 
-### 📈 Review & Analytics
-- **Offer history** and review system
-- **Search and filter** functionality
-- **Data visualization** for insights
-- **Export capabilities** for analysis
+```bash
+REACT_APP_FIREBASE_API_KEY=your_api_key_here
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+REACT_APP_FIREBASE_MEASUREMENT_ID=your_measurement_id
+```
 
-## 🛠 Technology Stack
+### Firebase Setup
+1. Create a Firebase project
+2. Enable Firestore Database
+3. Set up Authentication (Anonymous sign-in)
+4. Deploy Firestore security rules from `firestore.rules`
 
-### Frontend
-- **React 18** - Modern UI library with hooks
-- **React Router 6** - Client-side routing
-- **Tailwind CSS 3** - Utility-first CSS framework
-- **Heroicons** - Beautiful SVG icons
+## 🎯 Usage
 
-### Backend & Database
-- **Firebase 11** - Backend-as-a-Service platform
-- **Firestore** - NoSQL cloud database
-- **Firebase Auth** - Authentication service
-- **Firebase Hosting** - Static web hosting
+### Authentication
+The application uses a weekly password system:
+- Password format: `TRdb{weekNumber}{reverseYear}`
+- Rate limiting: 5 attempts per 15 minutes
+- Session expires after 7 days
 
-### Development Tools
-- **Create React App** - Development environment
-- **PostCSS** - CSS processing
-- **Autoprefixer** - CSS vendor prefixing
-- **jsPDF** - PDF generation library
+### Calculating Freight
+1. Select service type (LTL, FTL, Air, Ocean)
+2. Enter origin and destination
+3. Specify cargo details (weight, dimensions)
+4. Review calculated pricing
+5. Save offer if needed
 
-## 🚀 Getting Started
+### Managing Offers
+- View all saved offers on the Database page
+- Edit existing offers with authentication
+- Generate PDF quotes
+- Filter and search offers
 
-### Prerequisites
-
-Before you begin, ensure you have the following installed:
-- **Node.js** (v14.0.0 or higher)
-- **npm** (v6.0.0 or higher) or **yarn**
-- **Firebase CLI** for deployment
-- **Git** for version control
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/armanyuvarlak/Logistics_DBMS.git
-   cd Logistics_DBMS
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
-
-3. **Configure Firebase**
-   - Create a new Firebase project at [Firebase Console](https://console.firebase.google.com)
-   - Enable Authentication, Firestore, and Hosting
-   - Copy your Firebase config to `src/firebase/firebaseConfig.js`
-
-4. **Start development server**
-   ```bash
-   npm start
-   # or
-   yarn start
-   ```
-
-5. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-## 📖 Usage
-
-### Getting Started
-1. **Create an Account** - Sign up with email or Google
-2. **Verify Email** - Check your inbox and verify your email address
-3. **Login** - Access the application with your credentials
-
-### Creating Logistics Offers
-1. Navigate to **"Single Offer"** from the sidebar
-2. Fill in the required logistics parameters:
-   - Origin and destination
-   - Package dimensions and weight
-   - Service type and priority
-3. Review the automatic cost calculations
-4. Save or export your offer as PDF
-
-### Managing Database
-1. Access the **"Database"** section
-2. View, edit, or delete existing records
-3. Add new logistics partners or routes
-4. Import/export data for backup
-
-### Reviewing Offers
-1. Go to **"Review Offers"** section
-2. Browse your offer history
-3. Filter by date, status, or customer
-4. Generate reports and analytics
-
-## 🏗 Application Structure
+## 🏗️ Project Structure
 
 ```
 src/
-├── components/          # Reusable UI components
-│   ├── Header.jsx       # Navigation header
-│   ├── Sidebar.jsx      # Navigation sidebar
-│   ├── ResultsSection.jsx
-│   └── SummarySection.jsx
-├── contexts/            # React context providers
-│   └── AuthContext.jsx  # Authentication state management
-├── firebase/            # Firebase configuration and utilities
+├── components/          # React components
+│   ├── DynamicTable.jsx
+│   ├── OfferEditModal.jsx
+│   ├── PDFPreview.jsx
+│   └── ...
+├── contexts/           # React contexts
+│   └── AuthContext.jsx
+├── firebase/           # Firebase configuration
 │   ├── firebaseConfig.js
-│   ├── authUtils.js
-│   ├── firebaseUtils.js
-
-├── pages/               # Main application pages
-│   ├── LoginPage.jsx
-│   ├── SingleOfferPage.jsx
+│   └── firebaseUtils.js
+├── pages/             # Page components
+│   ├── CalculatePage.jsx
 │   ├── DatabasePage.jsx
-│   ├── ResultsPage.jsx
-│   └── ReviewOffersPage.jsx
-├── services/            # Business logic services
+│   └── ...
+├── services/          # Business logic
 │   ├── calculatorService.js
-│   └── pricingService.js
-├── utils/               # Utility functions
-
-└── App.jsx              # Main application component
+│   ├── offerService.js
+│   └── ...
+└── utils/             # Utility functions
+    ├── authUtils.js
+    └── pdfGenerator.js
 ```
 
-## 🔧 Firebase Configuration
+## 🔐 Security Features
 
-### Environment Setup
-1. **Create Environment Variables File**
-   Copy `.env.example` to `.env` and update with your Firebase credentials:
-   ```bash
-   cp .env.example .env
-   ```
+- **Rate Limiting**: Prevents brute force attacks
+- **Session Management**: Automatic token expiration
+- **Environment Variables**: Secure credential storage
+- **Input Validation**: XSS prevention and data validation
+- **Authentication**: Required for sensitive operations
 
-2. **Configure Firebase Credentials**
-   Update your `.env` file with your Firebase project settings:
-   ```bash
-   REACT_APP_FIREBASE_API_KEY=your-api-key
-   REACT_APP_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-   REACT_APP_FIREBASE_PROJECT_ID=your-project-id
-   REACT_APP_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-   REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-   REACT_APP_FIREBASE_APP_ID=your-app-id
-   ```
+## 📱 Desktop-First Design
 
-3. **Firebase Security Rules**
-   The application includes enhanced Firestore security rules with authentication requirements and data validation.
-
-const app = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
-export const db = getFirestore(app)
-export default app
-```
-
-### Firestore Security Rules
-The application uses custom security rules to ensure data privacy and security. Check `firestore.rules` for current configuration.
+The application is optimized for desktop use with:
+- Two-column layouts throughout
+- Larger form elements and buttons
+- Desktop-optimized spacing and typography
+- No mobile breakpoints (purely desktop-focused)
 
 ## 🚀 Deployment
 
@@ -218,67 +129,37 @@ The application uses custom security rules to ensure data privacy and security. 
 npm run build
 ```
 
-### Deploy to Firebase
+### Firebase Deployment
 ```bash
-# Login to Firebase (first time only)
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login to Firebase
 firebase login
 
 # Deploy to Firebase Hosting
-npm run deploy
-```
-
-### Manual Firebase Deployment
-```bash
-# Build the application
-npm run build
-
-# Deploy using Firebase CLI
 firebase deploy
 ```
 
-## 🔐 Security
+## 📊 Performance
 
-This application implements multiple security layers:
+- **Caching**: 5-minute localStorage cache for offers
+- **Code Splitting**: Components loaded on demand
+- **Optimized Builds**: Clean production builds without debug info
+- **React Optimization**: useCallback and useMemo for performance
 
-### **Active Security Features**
-- ✅ **Environment Variables**: Firebase credentials stored securely
-- ✅ **HTTPS Enforcement**: All traffic encrypted in production  
-- ✅ **Security Headers**: CSP, XSS protection, and frame options configured
-- ✅ **Rate Limiting**: Protection against brute force attacks
-- ✅ **Input Validation**: Comprehensive sanitization and validation
-- ✅ **Firebase Security Rules**: Authentication required for all data access
-- ✅ **Session Management**: Secure token-based authentication
+## 🛡️ Security Status
 
-### **Security Configuration**
-The application uses multiple security mechanisms:
-- **Content Security Policy** prevents XSS attacks
-- **Rate limiting** on authentication attempts (5 per 15 minutes)
-- **Input sanitization** removes potentially harmful content
-- **Firestore rules** require authentication for all operations
-- **Environment variables** protect sensitive configuration
+This is a personal prototype with appropriate security measures:
+- ✅ Environment variables for Firebase config
+- ✅ Rate limiting and session management
+- ✅ Input validation and error handling
+- ✅ Clean production code
 
-### **Production Deployment**
-For secure production deployment:
-1. Ensure HTTPS is enabled (`npm start` uses HTTPS by default)
-2. Configure environment variables for Firebase credentials
-3. Deploy Firestore security rules with the application
-4. Enable Firebase security features in the console
-
-## 📝 License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📋 Application Notes
+## 🔗 Repository
 
-**Personal logistics management system** designed for desktop use with comprehensive security features and real-time calculations.
-
-## 🙏 Acknowledgments
-
-- Built with ❤️ using React and Firebase
-- Icons provided by [Heroicons](https://heroicons.com/)
-- Styling powered by [Tailwind CSS](https://tailwindcss.com/)
-- PDF generation by [jsPDF](https://github.com/parallax/jsPDF)
-
----
-
-**Made with ❤️ for the logistics industry** 
+[GitHub Repository](https://github.com/armanyuvarlak/Logistics_DBMS) 
