@@ -38,7 +38,6 @@ The **Logistics Calculator Web Application** is a modern, responsive web platfor
 
 ### 🎨 User Interface
 - **Modern responsive design** built with Tailwind CSS
-- **Mobile-first approach** for all device compatibility
 - **Intuitive navigation** with collapsible sidebar
 
 ### 📈 Review & Analytics
